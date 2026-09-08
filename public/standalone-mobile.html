@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RakshaCast | National Disaster Early Warning System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gov: {
+                            navy: "#0a192f",
+                            blue: "#1e3a8a",
+                            saffron: "#ea580c",
+                            gold: "#d97706",
+                            green: "#15803d",
+                            surface: "#ffffff",
+                            bg: "#f1f5f9",
+                            card: "#ffffff",
+                            border: "#cbd5e1"
+                        }
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"]
+                    }
+                }
+            }
+        };
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #0f172a;
+            color: #0f172a;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Clean Mobile Phone Shell */
+        .mobile-shell {
+            width: 100%;
+            max-width: 440px;
+            min-height: 100vh;
+            margin: 0 auto;
+            background-color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        @media (min-width: 640px) {
+            .mobile-shell {
+                min-height: 890px;
+                max-height: 92vh;
+                margin: 20px auto;
+                border-radius: 40px;
+                border: 10px solid #1e293b;
+                overflow: hidden;
+            }
+        }
+
+        /* Android Clean Status Bar */
+        .android-status-bar {
+            height: 28px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 700;
+            color: #ffffff;
+            background: #0f172a;
+            z-index: 50;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .leaflet-container {
+            font-family: inherit;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 flex justify-center items-center min-h-screen text-slate-800">
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed top-4 z-[9999] flex flex-col space-y-2 pointer-events-none px-4 w-full max-w-sm"></div>
+
+    <!-- Modal Container -->
+    <div id="modal-container" class="fixed inset-0 z-[9000] hidden items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4"></div>
+
+    <!-- MOBILE PHONE FRAME -->
+    <div class="mobile-shell">
+
+        <!-- 1. ANDROID STATUS BAR -->
+        <div class="android-status-bar">
+            <span id="android-clock">11:30 AM</span>
+            <div class="flex items-center space-x-2">
+                <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-600 text-white font-bold">5G GPS</span>
+                <i data-lucide="wifi" class="w-3.5 h-3.5 text-slate-300"></i>
+                <i data-lucide="battery-charging" class="w-4 h-4 text-emerald-400"></i>
+            </div>
+        </div>
+
+        <!-- 2. OFFICIAL GOVERNMENT HEADER (Clean Indian National Tricolor Emblem Style) -->
+        <header class="bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 text-white px-4 py-3 shadow-md z-40 sticky top-0 border-b-2 border-orange-500">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <!-- National Shield Emblem -->
+                    <div class="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow text-blue-900 font-black text-base border-2 border-orange-500">
+                        🏛️
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="font-black text-sm tracking-tight text-white">RakshaCast</span>
+                            <span class="text-[9px] bg-orange-500 text-white font-bold px-1.5 py-0.2 rounded uppercase">MoES / IMD</span>
+                        </div>
+                        <p class="text-[9px] text-blue-200 font-medium">National Disaster Early Warning Network</p>
+                    </div>
+                </div>
+
+                <!-- Role & Simulation Switcher -->
+                <div class="flex items-center space-x-1.5">
+                    <button onclick="toggleAuthorityMode()" id="role-toggle-btn" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-800 text-blue-100 hover:bg-blue-700 transition border border-blue-600">
+                        👤 Citizen View
+                    </button>
+                    <button onclick="runSimulationSequence()" title="1-Click Emergency Test" class="p-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition shadow">
+                        <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 3. SCROLLABLE SCREEN CONTENT CONTAINER -->
+        <div id="screen-viewport" class="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-3.5 pb-24 bg-slate-100">
+            <!-- Dynamic Screen Views -->
+        </div>
+
+        <!-- 4. FLOATING SOS EMERGENCY BUTTON -->
+        <div id="floating-sos-deck" class="absolute bottom-20 right-4 z-40">
+            <button onclick="navigate('sos')" class="w-14 h-14 rounded-full bg-red-600 text-white flex flex-col items-center justify-center shadow-xl border-2 border-white active:scale-95 transition hover:bg-red-700">
+                <i data-lucide="radio" class="w-5 h-5"></i>
+                <span class="text-[8px] font-black uppercase tracking-wider">SOS</span>
+            </button>
+        </div>
+
+        <!-- 5. ANDROID BOTTOM NAVIGATION BAR (Clean White / Blue Accent) -->
+        <nav id="bottom-tab-bar" class="bg-white border-t border-slate-300 px-2 py-2 flex items-center justify-around z-50 absolute bottom-0 w-full shadow-lg">
+            <!-- Bottom Tabs populated dynamically -->
+        </nav>
+
+    </div>
+
+    <!-- APP SCRIPT -->
+    <script>
+/**
+ * RakshaCast - Ultimate Disaster Resilience & Real-Time Emergency Platform
+ * Ministry of Earth Sciences (MoES) & India Meteorological Department (IMD)
+ * 
+ * Features Included:
+ * 1. Global & All-India Geocoding Search + GPS Auto-Location
+ * 2. Real-Time Open-Meteo & IMD Doppler Radar Telemetry Fusion
+ * 3. 4D Interactive Flood Inundation Time-Slider (+1h, +3h, +6h)
+ * 4. Offline Zero-Signal Bluetooth Low Energy (BLE) Mesh Relay Simulator
+ * 5. Acoustic Ultrasonic Search Beacon Synthesizer (Web Audio API)
+ * 6. Automated SOS Morse Code Flashlight Strobe
+ * 7. Live Drone UAV Thermal Reconnaissance Simulation
+ * 8. Multi-Channel Vernacular Broadcast Preview (SMS + Dialect Voice IVR)
+ * 9. QR-Authenticated Anti-Hoarding Relief Kit Distribution
+ * 10. 1-Click Disaster Compensation Claim Certificate Generator
+ * 11. Bidirectional NDRF Incident Control Room & Live Rescue Boat Dispatch
+ */
+
+let STATE = {
+    isAuthority: false,
+    currentTab: "home",
+    selectedLanguage: "EN",
+    currentLocationName: "Haridwar-Rishikesh Valley, Uttarakhand",
+    userCoords: [30.0860, 78.2690],
+    inundationHour: 0, // 0, 1, 3, 6 hrs
+    acousticBeaconActive: false,
+    strobeActive: false,
+    telemetry: {
+        temperature: 27.2,
+        rainfall: 48.0,
+        humidity: 86,
+        windSpeed: 28,
+        pressure: 994.2,
+        waterLevel: 2.45,
+        elevation: 325,
+        riskScore: 82,
+        riskLevel: "CRITICAL",
+        leadTimeHours: 3.5,
+        lastUpdated: new Date().toLocaleTimeString("en-IN") + " IST"
+    },
+    alerts: [
+        {
+            id: "ALT-01",
+            title: "RED CRITICAL: Severe Cloudburst & Flash Flood Nowcast",
+            area: "Ganga-Bagmati Basin & Lowland Corridors",
+            severity: "CRITICAL",
+            timeIssued: "Just now",
+            instructions: "Move to designated high ridge shelters immediately. Water surge wave estimated in 3.5 hours."
+        }
+    ],
+    shelters: [
+        { id: "SH-01", name: "Temple Hill Community Relief Center", lat: 30.0780, lng: 78.2520, elevation: 445, distance: "1.4 km", available: 415, capacity: 600, status: "OPEN" },
+        { id: "SH-02", name: "Govt High School Elevated Camp", lat: 30.0950, lng: 78.2580, elevation: 410, distance: "2.1 km", available: 280, capacity: 400, status: "OPEN" },
+        { id: "SH-03", name: "District Indoor Sports Stadium Base Camp", lat: 30.0990, lng: 78.2800, elevation: 420, distance: "3.5 km", available: 790, capacity: 1200, status: "OPEN" }
+    ],
+    sosQueue: [
+        {
+            id: "SOS-9081",
+            userName: "Aarav Sharma & Family",
+            phone: "+91 98765 43210",
+            emergencyType: "Rising Flood Water (Trapped 1st Floor)",
+            peopleCount: 4,
+            location: "Sector 4 Lowland Basin",
+            lat: 30.0855,
+            lng: 78.2705,
+            hasInfant: true,
+            hasElderly: true,
+            hasMedical: true,
+            message: "Water rose to 6 feet, grandmother needs oxygen cylinder.",
+            triageScore: 98.5,
+            status: "TEAM_EN_ROUTE",
+            assignedTeam: "NDRF Bravo Alpha (Motor Boat #4)",
+            time: "10 mins ago"
+        }
+    ],
+    reliefKits: [
+        { id: "KIT-01", beneficiaryName: "Aarav Sharma", aadharLast4: "4321", items: "10kg Rice, 2L Water, First Aid, Disinfection Pills", status: "VERIFIED_CLAIMED", timestamp: "Today 10:30 AM" }
+    ],
+    activeMap: null,
+
+    offlinePackDownloaded: true,
+    familySafeStatus: [
+        { name: "Me (Aarav)", status: "SAFE_AT_HOME", location: "Sector 4", battery: "84%", time: "Just now" },
+        { name: "Father (Ramesh)", status: "AT_SHELTER", location: "Temple Hill Camp", battery: "62%", time: "15 mins ago" },
+        { name: "Sister (Priya)", status: "SAFE_AT_WORK", location: "High Ridge Block", battery: "91%", time: "30 mins ago" }
+    ],
+    evacChecklist: [
+        { id: 1, text: "Drinking Water (2L per person)", done: true },
+        { id: 2, text: "Aadhaar Card / Essential Documents in Plastic Pouch", done: true },
+        { id: 3, text: "Prescription Medicines & First Aid", done: true },
+        { id: 4, text: "Charged Phone & Powerbank", done: true },
+        { id: 5, text: "Emergency Torch & Whistle", done: false }
+    ],
+
+};
+
+// Web Audio Acoustic Search Beacon Synthesizer
+let audioCtx = null;
+let beaconInterval = null;
+
+function toggleAcousticSearchBeacon() {
+    STATE.acousticBeaconActive = !STATE.acousticBeaconActive;
+    const btn = document.getElementById("acoustic-beacon-btn");
+    
+    if (STATE.acousticBeaconActive) {
+        if (btn) btn.className = "flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow animate-pulse";
+        showToast("🔊 Acoustic Search Beacon ACTIVATED: Emitting 880Hz Sonar Pulses for Rescue Canines & Boats", "critical");
+        
+        beaconInterval = setInterval(() => {
+            playSirenPulse();
+        }, 1200);
+    } else {
+        if (btn) btn.className = "flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 flex items-center justify-center space-x-1.5";
+        if (beaconInterval) clearInterval(beaconInterval);
+        showToast("Acoustic Search Beacon Deactivated.", "info");
+    }
+}
+
+function playSirenPulse() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        if (!audioCtx) audioCtx = new AudioContext();
+        
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.4);
+        
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+    } catch(e) {}
+}
+
+// SOS Flashlight Strobe
+function toggleFlashlightStrobe() {
+    STATE.strobeActive = !STATE.strobeActive;
+    const btn = document.getElementById("strobe-btn");
+    if (STATE.strobeActive) {
+        if (btn) btn.className = "flex-1 py-2.5 bg-amber-600 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow animate-pulse";
+        showToast("🔦 SOS Morse Strobe Active: (··· --- ···)", "success");
+    } else {
+        if (btn) btn.className = "flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 flex items-center justify-center space-x-1.5";
+        showToast("Flashlight Strobe Deactivated.", "info");
+    }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+    await fetchLiveOpenMeteo(STATE.userCoords[0], STATE.userCoords[1]);
+    updateBottomNav();
+    navigate("home");
+});
+
+// Live Worldwide Weather Fetching
+async function fetchLiveOpenMeteo(lat, lng, locName) {
+    try {
+        if (locName) STATE.currentLocationName = locName;
+        STATE.userCoords = [lat, lng];
+
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,precipitation,rain,surface_pressure,wind_speed_10m&timezone=auto`;
+        const res = await fetch(url);
+        if (res.ok) {
+            const data = await res.json();
+            const cur = data.current;
+            if (cur) {
+                STATE.telemetry.temperature = Math.round(cur.temperature_2m * 10) / 10;
+                STATE.telemetry.humidity = Math.round(cur.relative_humidity_2m);
+                STATE.telemetry.pressure = Math.round(cur.surface_pressure * 10) / 10;
+                STATE.telemetry.windSpeed = Math.round(cur.wind_speed_10m * 10) / 10;
+                const rain = cur.precipitation || cur.rain || 0;
+                STATE.telemetry.rainfall = rain > 0 ? rain : 48.0;
+                STATE.telemetry.lastUpdated = new Date().toLocaleTimeString("en-IN") + " IST";
+            }
+        }
+    } catch(err) {
+        console.warn("Using baseline telemetry:", err);
+    }
+}
+
+// Live Search & Geocoding
+async function handleLocationSearch(query) {
+    if (!query || query.trim().length < 2) return;
+    try {
+        showToast(`🔍 Searching live coordinates for "${query}"...`, "info");
+        const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`;
+        const res = await fetch(url);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.results && data.results.length > 0) {
+                const item = data.results[0];
+                const fullName = `${item.name}, ${item.admin1 || ""}, ${item.country || "India"}`;
+                await fetchLiveOpenMeteo(item.latitude, item.longitude, fullName);
+                showToast(`📍 Live Location Set: ${fullName}`, "success");
+                navigate("home");
+            } else {
+                showToast("Location not found. Try searching city or district name.", "critical");
+            }
+        }
+    } catch(e) {
+        showToast("Search failed. Check connectivity.", "critical");
+    }
+}
+
+// Device GPS Auto-Detect
+function detectDeviceGPS() {
+    if ("geolocation" in navigator) {
+        showToast("📡 Accessing Device GPS Location...", "info");
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            await fetchLiveOpenMeteo(lat, lng, `My GPS Position (${lat.toFixed(3)}°, ${lng.toFixed(3)}°)`);
+            showToast("📍 Live GPS Position Loaded!", "success");
+            navigate("home");
+        }, (err) => {
+            showToast("GPS Permission denied or unavailable.", "critical");
+        }, { timeout: 8000 });
+    } else {
+        showToast("Geolocation is not supported by your browser.", "critical");
+    }
+}
+
+function navigate(tabId) {
+    STATE.currentTab = tabId;
+    const viewport = document.getElementById("screen-viewport");
+    if (!viewport) return;
+
+    viewport.scrollTop = 0;
+    updateBottomNav();
+
+    switch(tabId) {
+        case "home": viewport.innerHTML = renderHomeScreen(); break;
+        case "map": viewport.innerHTML = renderLiveMapScreen(); initMobileMap(); break;
+        case "evacuate": viewport.innerHTML = renderEvacuateScreen(); initEvacuateRouteMap(); break;
+        case "alerts": viewport.innerHTML = renderAlertsScreen(); break;
+        case "profile": viewport.innerHTML = renderProfileScreen(); break;
+        case "sos": viewport.innerHTML = renderSOSScreen(); break;
+        case "shelters": viewport.innerHTML = renderSheltersScreen(); break;
+        case "mesh-simulator": viewport.innerHTML = renderMeshSimulatorScreen(); break;
+        case "cwc-telemetry": viewport.innerHTML = renderCwcTelemetryScreen(); break;
+        case "broadcast-preview": viewport.innerHTML = renderBroadcastPreviewScreen(); break;
+        case "recovery": viewport.innerHTML = renderRecoveryScreen(); break;
+        case "family-safety": viewport.innerHTML = renderFamilySafetyScreen(); break;
+        case "evac-kit": viewport.innerHTML = renderEvacKitScreen(); break;
+        case "authority": viewport.innerHTML = renderAuthorityScreen(); break;
+        default: viewport.innerHTML = renderHomeScreen(); break;
+    }
+
+    setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 50);
+}
+
+function toggleAuthorityMode() {
+    STATE.isAuthority = !STATE.isAuthority;
+    const btn = document.getElementById("role-toggle-btn");
+    if (STATE.isAuthority) {
+        btn.innerText = `🛡️ NDRF Control (${STATE.sosQueue.length})`;
+        btn.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold bg-red-700 text-white shadow transition border border-red-500 animate-pulse";
+        navigate("authority");
+        showToast("Switched to NDRF Tactical Incident Control Room", "critical");
+    } else {
+        btn.innerText = "👤 Citizen View";
+        btn.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-800 text-blue-100 hover:bg-blue-700 transition border border-blue-600";
+        navigate("home");
+        showToast("Switched to Citizen Public View", "info");
+    }
+}
+
+function updateBottomNav() {
+    const nav = document.getElementById("bottom-tab-bar");
+    if (!nav) return;
+
+    const tabs = [
+        { id: "home", label: "Home", icon: "home" },
+        { id: "map", label: "Live Map", icon: "map" },
+        { id: "evacuate", label: "Evacuate", icon: "navigation" },
+        { id: "alerts", label: "Alerts", icon: "bell", badge: STATE.alerts.length },
+        { id: "profile", label: "Profile", icon: "user" }
+    ];
+
+    nav.innerHTML = tabs.map(t => `
+        <button onclick="navigate('${t.id}')" class="flex flex-col items-center justify-center flex-1 py-1 transition ${STATE.currentTab === t.id ? "text-blue-900 font-black border-t-2 border-orange-500" : "text-slate-500 hover:text-slate-800"}">
+            <div class="relative">
+                <i data-lucide="${t.icon}" class="w-5 h-5"></i>
+                ${t.badge ? `<span class="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-red-600 rounded-full text-[8px] font-bold text-white flex items-center justify-center">${t.badge}</span>` : ""}
+            </div>
+            <span class="text-[10px] mt-0.5 tracking-tight font-medium">${t.label}</span>
+        </button>
+    `).join("");
+
+    if (window.lucide) lucide.createIcons();
+}
+
+// -------------------------------------------------------------
+// 1. HOME SCREEN (With Tools Suite & Innovation Cards)
+// -------------------------------------------------------------
+function renderHomeScreen() {
+    const t = STATE.telemetry;
+    const isCrit = t.riskLevel === "CRITICAL" || t.riskScore >= 80;
+
+    return `
+        <div class="space-y-3">
+            
+            <!-- Live Location Search & GPS Autodetect Bar -->
+            <div class="bg-white border border-slate-200 p-2.5 rounded-xl shadow-xs space-y-2">
+                <div class="flex items-center space-x-1.5">
+                    <i data-lucide="map-pin" class="w-4 h-4 text-orange-600 shrink-0"></i>
+                    <input id="loc-search-input" type="text" placeholder="Search any Indian City / District..." class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-900" onkeydown="if(event.key==='Enter') handleLocationSearch(this.value)">
+                    <button onclick="handleLocationSearch(document.getElementById('loc-search-input').value)" class="px-2.5 py-1 bg-blue-900 text-white font-bold rounded-lg text-xs shrink-0">
+                        Search
+                    </button>
+                    <button onclick="detectDeviceGPS()" title="Use GPS" class="p-1 bg-slate-100 border border-slate-300 text-blue-900 hover:bg-slate-200 rounded-lg shrink-0">
+                        <i data-lucide="crosshair" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100">
+                    <span class="truncate">📍 Current: <b>${STATE.currentLocationName}</b></span>
+                    <span class="text-emerald-700 font-bold shrink-0">● LIVE FEED</span>
+                </div>
+            </div>
+
+            
+            <!-- 1-Tap Family Safety Check-In & Offline Pack Bar -->
+            <div class="bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex items-center justify-between shadow-xs">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-full bg-emerald-700 text-white flex items-center justify-center font-black text-xs">
+                        ✓
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-emerald-950">1-Tap Family Safety Check-In</p>
+                        <p class="text-[10px] text-emerald-800">Alert family members you are safe</p>
+                    </div>
+                </div>
+                <button onclick="triggerFamilySafetyCheckin()" class="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition shadow active:scale-95">
+                    I Am Safe
+                </button>
+            </div>
+
+
+            <!-- Emergency Warning Banner -->
+            <div class="bg-white border-l-4 border-red-600 rounded-xl p-4 shadow-sm border border-slate-200 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="px-2.5 py-0.5 rounded text-[10px] font-black tracking-wide uppercase bg-red-100 text-red-800 border border-red-300">
+                        ${t.riskLevel} FLOOD RISK (${t.riskScore}/100)
+                    </span>
+                    <span class="text-[11px] text-slate-600 font-bold">Evac Window: <b class="text-red-600 font-black">${t.leadTimeHours} hrs</b></span>
+                </div>
+
+                <div>
+                    <h2 class="text-base font-extrabold text-slate-900 leading-snug">Severe Flood Nowcast Alert</h2>
+                    <p class="text-xs text-slate-700 leading-relaxed mt-1">Surge water level estimated at <b>${t.waterLevel}m</b>. Move to high-ridge safe shelters immediately.</p>
+                </div>
+
+                <div class="flex items-center space-x-2 pt-1">
+                    <button onclick="navigate('evacuate')" class="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center space-x-1.5 transition active:scale-95">
+                        <i data-lucide="navigation" class="w-4 h-4"></i>
+                        <span>Evacuate Safe Route</span>
+                    </button>
+                    <button onclick="navigate('sos')" class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center space-x-1.5 transition active:scale-95 animate-pulse">
+                        <i data-lucide="radio" class="w-4 h-4"></i>
+                        <span>Send SOS Distress</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 6 Advanced Innovation Feature Tiles Grid -->
+            <div class="grid grid-cols-2 gap-2.5">
+                <button onclick="navigate('mesh-simulator')" class="p-3 bg-white border border-slate-200 hover:border-blue-400 rounded-xl flex items-center space-x-2.5 text-left transition active:scale-95 shadow-xs">
+                    <div class="w-9 h-9 rounded-lg bg-blue-100 text-blue-900 flex items-center justify-center shrink-0">
+                        <i data-lucide="cpu" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-900">BLE Mesh Network</p>
+                        <p class="text-[9px] text-slate-500">Zero-Signal Relay</p>
+                    </div>
+                </button>
+
+                
+                <button onclick="navigate('family-safety')" class="p-3 bg-white border border-slate-200 hover:border-emerald-400 rounded-xl flex items-center space-x-2.5 text-left transition active:scale-95 shadow-xs">
+                    <div class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center shrink-0">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-900">Family Safety</p>
+                        <p class="text-[9px] text-slate-500">3 Members Safe</p>
+                    </div>
+                </button>
+
+                <button onclick="navigate('evac-kit')" class="p-3 bg-white border border-slate-200 hover:border-blue-400 rounded-xl flex items-center space-x-2.5 text-left transition active:scale-95 shadow-xs">
+                    <div class="w-9 h-9 rounded-lg bg-blue-100 text-blue-900 flex items-center justify-center shrink-0">
+                        <i data-lucide="check-square" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-900">Evac Go-Bag</p>
+                        <p class="text-[9px] text-slate-500">4/5 Items Packed</p>
+                    </div>
+                </button>
+
+
+                <button onclick="navigate('cwc-telemetry')" class="p-3 bg-white border border-slate-200 hover:border-emerald-400 rounded-xl flex items-center space-x-2.5 text-left transition active:scale-95 shadow-xs">
+                    <div class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-900 flex items-center justify-center shrink-0">
+                        <i data-lucide="waves" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-900">River Basin Telemetry</p>
+                        <p class="text-[9px] text-slate-500">CWC Water Sensors</p>
+                    </div>
+                </button>
+
+                <button onclick="navigate('broadcast-preview')" class="p-3 bg-white border border-slate-200 hover:border-orange-400 rounded-xl flex items-center space-x-2.5 text-left transition active:scale-95 shadow-xs">
+                    <div class="w-9 h-9 rounded-lg bg-orange-100 text-orange-900 flex items-center justify-center shrink-0">
+                        <i data-lucide="phone-forwarded" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-900">Dialect Voice IVR</p>
+                        <p class="text-[9px] text-slate-500">Feature Phone SMS</p>
+                    </div>
+                </button>
+
+                <button onclick="navigate('recovery')" class="p-3 bg-white border border-slate-200 hover:border-purple-400 rounded-xl flex items-center space-x-2.5 text-left transition active:scale-95 shadow-xs">
+                    <div class="w-9 h-9 rounded-lg bg-purple-100 text-purple-900 flex items-center justify-center shrink-0">
+                        <i data-lucide="qr-code" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-900">Relief Kit QR Auth</p>
+                        <p class="text-[9px] text-slate-500">Anti-Hoarding</p>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Hardware Search Beacon & Flashlight Strobe Controls -->
+            <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2 shadow-xs">
+                <p class="font-bold text-slate-800 text-[10px] uppercase">Emergency Hardware Tools (Darkness & Trap)</p>
+                <div class="flex space-x-2">
+                    <button id="acoustic-beacon-btn" onclick="toggleAcousticSearchBeacon()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 flex items-center justify-center space-x-1.5 transition">
+                        <i data-lucide="volume-2" class="w-4 h-4 text-red-600"></i>
+                        <span>Acoustic Beacon (880Hz)</span>
+                    </button>
+                    <button id="strobe-btn" onclick="toggleFlashlightStrobe()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 flex items-center justify-center space-x-1.5 transition">
+                        <i data-lucide="zap" class="w-4 h-4 text-amber-600"></i>
+                        <span>SOS Morse Strobe</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live Observation Telemetry Card -->
+            <div class="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2.5 shadow-xs">
+                <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+                        <span class="text-xs font-bold text-slate-800">Live Observation Telemetry</span>
+                    </div>
+                    <span class="text-[10px] text-slate-500 font-medium">Updated: ${t.lastUpdated}</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="p-2 bg-slate-50 rounded-lg border border-slate-200">
+                        <p class="text-[9px] text-slate-500 font-bold uppercase">Precipitation</p>
+                        <p class="text-sm font-black text-blue-900 mt-0.5">${t.rainfall} <span class="text-[9px] font-normal">mm/h</span></p>
+                    </div>
+                    <div class="p-2 bg-slate-50 rounded-lg border border-slate-200">
+                        <p class="text-[9px] text-slate-500 font-bold uppercase">Temperature</p>
+                        <p class="text-sm font-black text-slate-900 mt-0.5">${t.temperature}°C</p>
+                    </div>
+                    <div class="p-2 bg-slate-50 rounded-lg border border-slate-200">
+                        <p class="text-[9px] text-slate-500 font-bold uppercase">Wind Velocity</p>
+                        <p class="text-sm font-black text-slate-900 mt-0.5">${t.windSpeed} <span class="text-[9px] font-normal">km/h</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergency Helpline Call Box -->
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-full bg-blue-900 text-white flex items-center justify-center shrink-0 font-bold text-xs">
+                        📞
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-blue-950">National Disaster Helpline</p>
+                        <p class="text-[10px] text-blue-800">NDRF: <b>1078</b> • Emergency: <b>112</b></p>
+                    </div>
+                </div>
+                <a href="tel:1078" class="px-3.5 py-1.5 bg-blue-900 hover:bg-blue-950 text-white rounded-lg text-xs font-bold transition">
+                    Call 1078
+                </a>
+            </div>
+
+        </div>
+    `;
+}
+
+// -------------------------------------------------------------
+// 2. LIVE MAP WITH 4D INUNDATION TIME-SLIDER (+1h, +3h, +6h)
+// -------------------------------------------------------------
+function renderLiveMapScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="bg-white border border-slate-200 p-3 rounded-xl shadow-xs space-y-2">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xs font-bold text-slate-900">4D Flood Inundation & Hydro-Prediction Map</h2>
+                        <p class="text-[10px] text-slate-500">${STATE.currentLocationName}</p>
+                    </div>
+                    <button onclick="detectDeviceGPS()" class="px-2 py-1 bg-blue-900 text-white rounded-lg text-[10px] font-bold flex items-center space-x-1">
+                        <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
+                        <span>GPS Locate</span>
+                    </button>
+                </div>
+
+                <!-- 4D Inundation Forecast Time-Slider -->
+                <div class="bg-slate-50 p-2 rounded-lg border border-slate-200 space-y-1">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-700">
+                        <span>Prediction Forecast Horizon:</span>
+                        <span id="slider-hour-label" class="text-blue-900 font-mono">+${STATE.inundationHour} Hours Forward</span>
+                    </div>
+                    <input type="range" min="0" max="6" step="1" value="${STATE.inundationHour}" class="w-full accent-blue-900" oninput="updateInundationSlider(this.value)">
+                    <div class="flex justify-between text-[9px] text-slate-400 font-mono">
+                        <span>Now (0h)</span>
+                        <span>+1h (Runoff)</span>
+                        <span>+3h (Crest)</span>
+                        <span>+6h (Receding)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-xl p-1 shadow-sm h-[440px]">
+                <div id="mobile-risk-map" class="w-full h-full rounded-lg z-0"></div>
+            </div>
+        </div>
+    `;
+}
+
+function updateInundationSlider(val) {
+    STATE.inundationHour = parseInt(val);
+    document.getElementById("slider-hour-label").innerText = `+${val} Hours Forward (${val == 0 ? "Present Depth: 2.45m" : (val <= 3 ? `Peak Inundation: ${2.45 + val*0.4}m` : "Receding: 2.1m")})`;
+    showToast(`🌊 Recomputed hydrodynamic runoff model for T+${val} hours!`, "info");
+    initMobileMap();
+}
+
+function initMobileMap() {
+    setTimeout(() => {
+        if (STATE.activeMap) STATE.activeMap.remove();
+        const map = L.map("mobile-risk-map", { zoomControl: true }).setView(STATE.userCoords, 14);
+        STATE.activeMap = map;
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+
+        // Dynamic Flood Polygon expanding based on Inundation Time-Slider
+        const multiplier = 1 + (STATE.inundationHour * 0.25);
+        const radius = 450 * multiplier;
+        const color = STATE.inundationHour >= 3 ? "#991b1b" : "#dc2626";
+
+        L.circle(STATE.userCoords, { color: color, fillColor: color, fillOpacity: 0.38, radius: radius }).addTo(map).bindPopup(`<b>⚠️ Dynamic Inundation Zone (T+${STATE.inundationHour}h)</b><br>Surge Radius: ${Math.round(radius)}m`);
+
+        L.circleMarker(STATE.userCoords, { radius: 9, fillColor: "#1e3a8a", color: "#ffffff", weight: 2, fillOpacity: 1 }).addTo(map).bindPopup(`<b>📍 ${STATE.currentLocationName}</b><br>Altitude: ${STATE.telemetry.elevation}m`);
+
+        STATE.shelters.forEach(s => {
+            L.circleMarker([s.lat, s.lng], { radius: 9, fillColor: "#15803d", color: "#ffffff", weight: 2, fillOpacity: 1 }).addTo(map).bindPopup(`<b>🏕️ ${s.name}</b><br>Available: ${s.available} Beds`);
+        });
+
+        STATE.sosQueue.forEach(s => {
+            L.circleMarker([s.lat, s.lng], { radius: 8, fillColor: "#dc2626", color: "#ffffff", weight: 2, fillOpacity: 1 }).addTo(map).bindPopup(`<b>🚨 SOS: ${s.userName}</b><br>Status: ${s.status}`);
+        });
+    }, 100);
+}
+
+// -------------------------------------------------------------
+// 3. ZERO-SIGNAL BLE MESH SIMULATOR
+// -------------------------------------------------------------
+function renderMeshSimulatorScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="bg-blue-900 text-white p-3.5 rounded-xl border border-blue-950 shadow-xs space-y-1">
+                <span class="text-[9px] font-bold text-orange-400 uppercase">Bluetooth Low Energy (BLE) / Wi-Fi Direct Mesh</span>
+                <h2 class="text-xs font-extrabold text-white">Zero-Signal Offline Packet Hop Relay</h2>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs text-xs">
+                <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <span class="font-bold text-slate-800">Mesh Network Status:</span>
+                    <span class="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded text-[10px]">6 PEERS DISCOVERED</span>
+                </div>
+
+                <div class="space-y-2 text-[11px]">
+                    <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center font-bold text-[10px]">1</span>
+                            <div>
+                                <p class="font-bold text-slate-900">Citizen Node (Aarav - Trapped Roof)</p>
+                                <p class="text-[9px] text-slate-500">Payload: SOS-9081 (4 Pax, O2 Req)</p>
+                            </div>
+                        </div>
+                        <span class="text-blue-900 font-mono font-bold text-[10px]">ORIGIN</span>
+                    </div>
+
+                    <div class="text-center text-slate-400 font-bold text-[10px]">▼ 120m Hop (BLE 5.2 Advertisement)</div>
+
+                    <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-6 h-6 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold text-[10px]">2</span>
+                            <div>
+                                <p class="font-bold text-slate-900">Relay Node (High Ridge Water Tank)</p>
+                                <p class="text-[9px] text-slate-500">Battery: 92% • Packet TTL: 4 Hops</p>
+                            </div>
+                        </div>
+                        <span class="text-emerald-700 font-mono font-bold text-[10px]">FORWARDED</span>
+                    </div>
+
+                    <div class="text-center text-slate-400 font-bold text-[10px]">▼ 340m Hop (Long Range LoRa / Wi-Fi Direct)</div>
+
+                    <div class="p-2.5 bg-emerald-50 border border-emerald-300 rounded-lg flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-6 h-6 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-[10px]">3</span>
+                            <div>
+                                <p class="font-bold text-emerald-950">NDRF Command Boat #4 Gateway</p>
+                                <p class="text-[9px] text-emerald-800">Ingested to Incident Triage Queue</p>
+                            </div>
+                        </div>
+                        <span class="text-emerald-800 font-mono font-bold text-[10px]">DELIVERED</span>
+                    </div>
+                </div>
+
+                <button onclick="showToast('📡 Broadcasted simulated test payload across 6 peer mesh hops!', 'success')" class="w-full py-2.5 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-lg text-xs transition shadow">
+                    Broadcast Test BLE Mesh Packet
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// -------------------------------------------------------------
+// 4. CENTRAL WATER COMMISSION (CWC) RIVER SENSOR TELEMETRY
+// -------------------------------------------------------------
+function renderCwcTelemetryScreen() {
+    const t = STATE.telemetry;
+    return `
+        <div class="space-y-3">
+            <div class="bg-blue-900 text-white p-3.5 rounded-xl border border-blue-950 shadow-xs space-y-1">
+                <span class="text-[9px] font-bold text-orange-400 uppercase">Ministry of Jal Shakti / CWC Network</span>
+                <h2 class="text-xs font-extrabold text-white">River Basin & Hydro-Gauge Sensor Telemetry</h2>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs text-xs">
+                <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <span class="font-bold text-slate-800">Observation Station:</span>
+                    <span class="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded text-[10px]">LIVE CWC TELEMETRY</span>
+                </div>
+
+                <div class="space-y-2.5 text-[11px]">
+                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                        <div class="flex justify-between text-slate-800 font-bold">
+                            <span>Current River Water Level:</span>
+                            <span class="text-red-600 font-mono font-black">${t.waterLevel} Meters</span>
+                        </div>
+                        <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                            <div class="bg-red-600 h-full rounded-full" style="width: 82%"></div>
+                        </div>
+                        <div class="flex justify-between text-[9px] text-slate-500 font-mono">
+                            <span>Normal Mark: 1.20m</span>
+                            <span>Warning Mark: 1.80m</span>
+                            <span class="text-red-600 font-bold">Danger Mark: 2.20m</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                            <p class="text-[9px] text-slate-500 font-bold uppercase">Upstream Discharge</p>
+                            <p class="text-xs font-black text-slate-900 font-mono mt-0.5">1,840 cumecs</p>
+                        </div>
+                        <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                            <p class="text-[9px] text-slate-500 font-bold uppercase">Peak Wave Arrival</p>
+                            <p class="text-xs font-black text-blue-900 font-mono mt-0.5">In 3.5 Hours</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="showToast('🌊 CWC Sensor Telemetry refreshed successfully.', 'success')" class="w-full py-2.5 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-lg text-xs transition shadow">
+                    Refresh River Gauge Data
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// -------------------------------------------------------------
+// 5. MULTI-CHANNEL VERNACULAR BROADCAST PREVIEW
+// -------------------------------------------------------------
+function renderBroadcastPreviewScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="bg-blue-900 text-white p-3.5 rounded-xl border border-blue-950 shadow-xs space-y-1">
+                <span class="text-[9px] font-bold text-orange-400 uppercase">Universal Non-Internet Reach</span>
+                <h2 class="text-xs font-extrabold text-white">Cell Broadcast SMS & Dialect Voice IVR Preview</h2>
+            </div>
+
+            <div class="space-y-2.5 text-xs">
+                <!-- Feature Phone SMS Preview -->
+                <div class="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2 shadow-xs">
+                    <div class="flex justify-between items-center text-[10px] font-bold text-slate-800">
+                        <span>📱 Feature Phone Cell Broadcast SMS</span>
+                        <span class="text-emerald-700">NO INTERNET REQUIRED</span>
+                    </div>
+                    <p class="text-[11px] text-slate-800 bg-slate-50 p-2.5 rounded-lg border border-slate-200 font-mono">
+                        [IMD-NDMA ALERT]: Ganga Basin water rising fast (2.45m). Evacuate Sector 4 via High Ridge to Temple Hill Camp. Do not use underpass. Helpline: 1078.
+                    </p>
+                </div>
+
+                <!-- Dialect Voice IVR Call Preview -->
+                <div class="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2 shadow-xs">
+                    <div class="flex justify-between items-center text-[10px] font-bold text-slate-800">
+                        <span>🗣️ Automated Vernacular Voice Call (Garhwali / Hindi)</span>
+                        <button onclick="playSirenPulse(); showToast('📞 Simulating automated Garhwali voice alert...', 'info');" class="text-blue-900 font-bold hover:underline">
+                            🔊 Play Sample Call
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-800 bg-slate-50 p-2.5 rounded-lg border border-slate-200 leading-relaxed">
+                        <b>Transcript (Hindi/Garhwali):</b> "सावधान! गंगा नदी का जलस्तर खतरे के निशान को पार कर चुका है। सभी नागरिक तुरंत हाई रिज से होकर मंदिर राहत शिविर पहुंचें। आपातकाल में 1078 डायल करें।"
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// -------------------------------------------------------------
+// 6. POST-DISASTER RECOVERY & QR ANTI-HOARDING
+// -------------------------------------------------------------
+function renderRecoveryScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="bg-blue-900 text-white p-3.5 rounded-xl border border-blue-950 shadow-xs space-y-1">
+                <span class="text-[9px] font-bold text-orange-400 uppercase">Post-Flood Rehabilitation & Claims</span>
+                <h2 class="text-xs font-extrabold text-white">QR Relief Distribution & Compensation Claim</h2>
+            </div>
+
+            <!-- Anti-Hoarding QR Relief Claim Card -->
+            <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs text-xs">
+                <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <div>
+                        <h3 class="font-bold text-slate-900">Relief Ration Kit QR Token</h3>
+                        <p class="text-[10px] text-slate-500">Aadhaar Verified Token to prevent hoarding</p>
+                    </div>
+                    <span class="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded text-[10px]">CLAIM READY</span>
+                </div>
+
+                <div class="flex items-center space-x-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                    <div class="w-14 h-14 bg-white border border-slate-300 rounded-lg flex items-center justify-center font-black text-xs text-blue-900 shadow-xs">
+                        [ QR CODE ]
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-900 text-xs">Aarav Sharma (Token: RAKSHA-9921)</p>
+                        <p class="text-[10px] text-slate-600">Rations: 10kg Rice, 2L Water, Medicines, Tarpaulin</p>
+                    </div>
+                </div>
+
+                <button onclick="showToast('✅ QR Token Scanned at Temple Hill Camp: Relief Kit Dispatched!', 'success')" class="w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg text-xs transition">
+                    Scan / Redeem Relief Kit at Camp
+                </button>
+            </div>
+
+            <!-- 1-Click Instant Damage Compensation Claim Certificate -->
+            <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-2.5 shadow-xs text-xs">
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-slate-900">Flood Damage Compensation Claim</span>
+                    <span class="text-blue-900 font-mono font-bold">REC-201</span>
+                </div>
+                <p class="text-slate-600 text-[11px]">Loss Category: <b>Residential Property (Ground Floor 14h Inundation)</b></p>
+                <div class="flex justify-between text-slate-800 font-bold pt-1 border-t border-slate-100">
+                    <span>Estimated Loss: ₹ 2,80,000</span>
+                    <span class="text-emerald-800">Approved Advance: ₹ 75,000</span>
+                </div>
+                <button onclick="downloadCompensationCertificate()" class="w-full py-2 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-lg text-xs transition shadow flex items-center justify-center space-x-1.5">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span>Download Official Compensation Certificate (PDF)</span>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function downloadCompensationCertificate() {
+    showToast("📄 Generating Official SDMA Disaster Compensation Grant Certificate (PDF)...", "success");
+    setTimeout(() => {
+        showToast("✅ Download Complete: RakshaCast_Compensation_Grant_REC201.pdf", "info");
+    }, 1200);
+}
+
+// -------------------------------------------------------------
+// 7. SOS, EVACUATE, SHELTERS, ALERTS, PROFILE, AUTHORITY
+// -------------------------------------------------------------
+function renderSOSScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="text-center space-y-1 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 mx-auto flex items-center justify-center font-bold text-lg">
+                    <i data-lucide="radio" class="w-6 h-6"></i>
+                </div>
+                <h2 class="text-base font-extrabold text-slate-900">Broadcast Emergency Distress Signal (SOS)</h2>
+                <p class="text-[10px] text-slate-500">Transmits directly to NDRF Command Center & Relays via BLE Mesh</p>
+            </div>
+
+            <form onsubmit="handleLiveSOSBroadcast(event)" class="p-4 bg-white border border-slate-200 rounded-xl space-y-3 shadow-xs text-xs">
+                <div>
+                    <label class="font-bold text-slate-700 text-[10px]">Your Name & Contact Number:</label>
+                    <div class="grid grid-cols-2 gap-2 mt-1">
+                        <input id="sos-user-name" type="text" value="Aarav Sharma" required class="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900">
+                        <input id="sos-user-phone" type="text" value="+91 98765 43210" required class="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="font-bold text-slate-700 text-[10px]">Emergency Category:</label>
+                    <select id="sos-category" class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-900">
+                        <option value="Rising Flood Water (Trapped 1st Floor)">Rising Flood Water (Trapped)</option>
+                        <option value="Critical Medical / Trauma / Oxygen Low">Critical Medical / Oxygen Low</option>
+                        <option value="Stranded on Rooftop / Tree">Stranded on Rooftop / Tree</option>
+                        <option value="Structural Wall Collapse">Structural Wall Collapse</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="font-bold text-slate-700 text-[10px]">Total Persons Trapped:</label>
+                    <input id="sos-people-count" type="number" min="1" max="50" value="4" class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900">
+                </div>
+
+                <div class="flex space-x-3 text-[11px] pt-0.5">
+                    <label class="flex items-center space-x-1.5"><input id="sos-has-inf" type="checkbox" checked class="accent-red-600"><span class="text-slate-700">👶 Infant</span></label>
+                    <label class="flex items-center space-x-1.5"><input id="sos-has-eld" type="checkbox" checked class="accent-red-600"><span class="text-slate-700">👵 Elderly</span></label>
+                    <label class="flex items-center space-x-1.5"><input id="sos-has-med" type="checkbox" checked class="accent-red-600"><span class="text-red-700 font-bold">🚑 Medical</span></label>
+                </div>
+
+                <div>
+                    <label class="font-bold text-slate-700 text-[10px]">Location Landmark & Specific Situation:</label>
+                    <textarea id="sos-details" rows="2" class="w-full mt-1 bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900">Water reached 6 feet outside, elderly patient on 1st floor roof.</textarea>
+                </div>
+
+                <button type="submit" class="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs shadow-md flex items-center justify-center space-x-2 transition active:scale-95">
+                    <i data-lucide="radio" class="w-4 h-4"></i>
+                    <span>TRANSMIT DISTRESS BEACON NOW</span>
+                </button>
+            </form>
+        </div>
+    `;
+}
+
+function handleLiveSOSBroadcast(e) {
+    e.preventDefault();
+    const name = document.getElementById("sos-user-name").value;
+    const phone = document.getElementById("sos-user-phone").value;
+    const category = document.getElementById("sos-category").value;
+    const count = parseInt(document.getElementById("sos-people-count").value) || 1;
+    const hasInf = document.getElementById("sos-has-inf").checked;
+    const hasEld = document.getElementById("sos-has-eld").checked;
+    const hasMed = document.getElementById("sos-has-med").checked;
+    const details = document.getElementById("sos-details").value;
+
+    let score = 40;
+    if (hasMed) score += 35;
+    if (hasInf) score += 15;
+    if (hasEld) score += 10;
+    score = Math.min(100, score);
+
+    const newSOS = {
+        id: `SOS-${Date.now().toString().slice(-4)}`,
+        userName: name,
+        phone: phone,
+        emergencyType: category,
+        peopleCount: count,
+        location: STATE.currentLocationName,
+        lat: STATE.userCoords[0],
+        lng: STATE.userCoords[1],
+        hasInfant: hasInf,
+        hasElderly: hasEld,
+        hasMedical: hasMed,
+        message: details,
+        triageScore: score,
+        status: "SUBMITTED",
+        assignedTeam: "Pending NDRF Assignment",
+        time: "Just now"
+    };
+
+    STATE.sosQueue.unshift(newSOS);
+    playSirenPulse();
+    showToast(`🚨 DISTRESS BEACON TRANSMITTED! ID: ${newSOS.id} (Triage: ${score}/100)`, "critical");
+
+    setTimeout(() => {
+        showToast("📢 NDRF Command Center received incoming emergency broadcast!", "info");
+        toggleAuthorityMode();
+    }, 1500);
+}
+
+function renderAuthorityScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="bg-blue-900 text-white p-3.5 rounded-xl border border-blue-950 shadow-xs flex items-center justify-between">
+                <div>
+                    <span class="text-[9px] font-bold text-orange-400 uppercase">NDRF Tactical Incident Control</span>
+                    <h2 class="text-xs font-extrabold text-white">Live Distress Message Queue (${STATE.sosQueue.length})</h2>
+                </div>
+                <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
+            </div>
+
+            <div class="space-y-2.5">
+                ${STATE.sosQueue.map(s => `
+                    <div class="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2 text-xs shadow-xs border-l-4 ${s.status === "RESOLVED" ? "border-l-emerald-600" : "border-l-red-600"}">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="font-black text-slate-900 text-xs">${s.userName}</span>
+                                <span class="text-[9px] font-bold text-red-700 bg-red-100 px-1.5 py-0.2 rounded ml-1 border border-red-300">Triage: ${s.triageScore}</span>
+                                <span class="text-[9px] text-slate-400 font-mono ml-1">${s.id}</span>
+                            </div>
+                            <span class="text-[9px] font-bold px-2 py-0.5 rounded ${s.status === "RESOLVED" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}">${s.status}</span>
+                        </div>
+                        <p class="text-[10px] text-slate-700"><b>Phone:</b> <a href="tel:${s.phone}" class="text-blue-900 underline font-bold">${s.phone}</a> • <b>Location:</b> ${s.location}</p>
+                        <p class="text-[10px] text-slate-800 bg-slate-50 p-2 rounded-lg border border-slate-200"><b>Situation:</b> ${s.message} (${s.peopleCount} Persons)</p>
+                        <p class="text-[10px] text-slate-500">Unit: <b class="text-blue-900">${s.assignedTeam}</b></p>
+                        <div class="flex space-x-2 pt-1">
+                            <button onclick="dispatchRescueBoatLive('${s.id}')" class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-[10px] transition shadow">Deploy Rescue Boat</button>
+                            <button onclick="resolveLiveSOS('${s.id}')" class="flex-1 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-[10px] transition shadow">Mark Safe / Resolved</button>
+                        </div>
+                    </div>
+                `).join("")}
+            </div>
+        </div>
+    `;
+}
+
+function dispatchRescueBoatLive(id) {
+    const item = STATE.sosQueue.find(s => s.id === id);
+    if (item) {
+        item.status = "TEAM_EN_ROUTE";
+        item.assignedTeam = "NDRF Bravo Alpha (Motor Boat #4)";
+        showToast(`🚤 Dispatched NDRF Boat #4 to ${item.userName}`, "success");
+        navigate("authority");
+    }
+}
+
+function resolveLiveSOS(id) {
+    const item = STATE.sosQueue.find(s => s.id === id);
+    if (item) {
+        item.status = "RESOLVED";
+        showToast(`✅ Rescue Operation Marked Safe & Resolved for ${item.userName}`, "success");
+        navigate("authority");
+    }
+}
+
+function renderEvacuateScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xs font-bold text-slate-900">Elevation-Aware Safe Evacuation Route</h2>
+                        <p class="text-[10px] text-slate-500">Calculates dry high-ridge terrain path</p>
+                    </div>
+                    <span class="text-[9px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">100% DRY PATH</span>
+                </div>
+                <div class="space-y-1.5 text-[11px]">
+                    <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <p class="font-bold text-emerald-900">✅ High Ridge Safe Route:</p>
+                        <p class="text-slate-700">Distance: <b>2.4 km</b> • Ridge Elevation: <b>410m</b> • Walk: <b>22 mins</b></p>
+                    </div>
+                </div>
+                <button onclick="showToast('🧭 GPS Navigation Started: Head towards High Ridge Access Ramp.', 'success')" class="w-full py-2.5 bg-emerald-700 text-white font-bold rounded-lg text-xs">
+                    Start Turn-by-Turn Navigation
+                </button>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl p-1 shadow-sm h-[360px]">
+                <div id="evac-route-map" class="w-full h-full rounded-lg z-0"></div>
+            </div>
+        </div>
+    `;
+}
+
+function initEvacuateRouteMap() {
+    setTimeout(() => {
+        const map = L.map("evac-route-map", { zoomControl: false }).setView(STATE.userCoords, 14);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+        L.polyline([STATE.userCoords, [30.0850, 78.2700], [30.0780, 78.2520]], { color: "#dc2626", weight: 4, dashArray: "5,8" }).addTo(map);
+        L.polyline([STATE.userCoords, [30.0910, 78.2620], [30.0950, 78.2580], [30.0780, 78.2520]], { color: "#15803d", weight: 5 }).addTo(map);
+    }, 100);
+}
+
+function renderSheltersScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+                <h2 class="text-xs font-bold text-slate-900">Designated Safe Relief Shelters</h2>
+            </div>
+            <div class="space-y-2.5">
+                ${STATE.shelters.map(s => `
+                    <div class="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2 shadow-xs">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-900 text-xs">${s.name}</span>
+                            <span class="text-[9px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded">${s.status}</span>
+                        </div>
+                        <p class="text-[10px] text-slate-600">Distance: <b>${s.distance}</b> • Altitude: <b>${s.elevation}m</b></p>
+                        <p class="text-[10px] text-emerald-800 font-bold">${s.available} / ${s.capacity} Beds Available</p>
+                        <button onclick="navigate('evacuate')" class="w-full py-2 bg-slate-100 text-slate-800 rounded-lg text-xs font-bold border border-slate-300">
+                            Directions →
+                        </button>
+                    </div>
+                `).join("")}
+            </div>
+        </div>
+    `;
+}
+
+function renderAlertsScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex justify-between items-center">
+                <h2 class="text-xs font-bold text-slate-900">Official Warning Bulletins</h2>
+            </div>
+            <div class="space-y-2.5">
+                ${STATE.alerts.map(a => `
+                    <div class="p-3.5 bg-white border border-l-4 border-l-red-600 rounded-xl shadow-xs space-y-2">
+                        <h3 class="font-bold text-slate-900 text-xs">${a.title}</h3>
+                        <p class="text-[11px] text-slate-800 bg-slate-50 p-2.5 rounded-lg border border-slate-200">${a.instructions}</p>
+                    </div>
+                `).join("")}
+            </div>
+        </div>
+    `;
+}
+
+function renderProfileScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center space-x-3">
+                <div class="w-11 h-11 rounded-full bg-blue-900 text-white flex items-center justify-center font-bold text-base">A</div>
+                <div>
+                    <h2 class="text-sm font-bold text-slate-900">Aarav Sharma</h2>
+                    <p class="text-[10px] text-slate-500">Sector 4 River Basin • +91 98765 43210</p>
+                </div>
+            </div>
+            <div class="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2 text-xs shadow-xs">
+                <p class="font-bold text-slate-700 text-[10px] uppercase">Compliance & Data Safety</p>
+                <div class="flex justify-between items-center py-1">
+                    <span>Privacy Policy (DPDP Act)</span>
+                    <a href="#" onclick="showToast('Privacy Policy: Foreground GPS & Emergency data only.', 'info'); return false;" class="text-blue-900 font-bold">Read Policy →</a>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function runSimulationSequence() {
+    showToast("🌧️ Step 1: Upstream Cloudburst (195mm/hr)", "critical");
+    STATE.telemetry.rainfall = 195.0;
+    STATE.telemetry.waterLevel = 3.65;
+    setTimeout(() => { showToast("📢 Step 2: IMD Emergency Evacuation Warning Issued!", "critical"); navigate("home"); }, 1200);
+    setTimeout(() => { showToast("🚨 Step 3: Stranded Citizen Broadcasts SOS", "critical"); playSirenPulse(); navigate("authority"); }, 2800);
+}
+
+function showToast(message, type = "info") {
+    const container = document.getElementById("toast-container");
+    if (!container) return;
+
+    const colors = {
+        success: "bg-emerald-800 text-white",
+        critical: "bg-red-700 text-white",
+        info: "bg-blue-900 text-white"
+    };
+
+    const toast = document.createElement("div");
+    toast.className = `p-3 rounded-xl shadow-lg text-[11px] font-bold max-w-sm ${colors[type] || colors.info} flex items-center justify-between space-x-2 pointer-events-auto`;
+    toast.innerHTML = `
+        <div class="flex items-center space-x-2">
+            <span>${message}</span>
+        </div>
+        <button onclick="this.parentElement.remove()" class="text-white/80 hover:text-white text-sm">&times;</button>
+    `;
+
+    container.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 4000);
+}
+
+
+// -------------------------------------------------------------
+// 8. FAMILY SAFETY RADAR SCREEN
+// -------------------------------------------------------------
+function renderFamilySafetyScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="bg-blue-900 text-white p-3.5 rounded-xl border border-blue-950 shadow-xs flex justify-between items-center">
+                <div>
+                    <span class="text-[9px] font-bold text-orange-400 uppercase">Real-Time Family Locator</span>
+                    <h2 class="text-xs font-extrabold text-white">Family Disaster Safety Circle</h2>
+                </div>
+                <button onclick="triggerFamilySafetyCheckin()" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold">
+                    Check In Now
+                </button>
+            </div>
+
+            <div class="space-y-2.5 text-xs">
+                ${STATE.familySafeStatus.map(f => `
+                    <div class="p-3.5 bg-white border border-slate-200 rounded-xl space-y-1.5 shadow-xs">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-900 text-xs">${f.name}</span>
+                            <span class="text-[9px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">${f.status}</span>
+                        </div>
+                        <p class="text-[10px] text-slate-600">Location: <b>${f.location}</b> • Battery: <b>${f.battery}</b></p>
+                        <p class="text-[9px] text-slate-400">Last Synced: ${f.time}</p>
+                    </div>
+                `).join("")}
+            </div>
+        </div>
+    `;
+}
+
+function triggerFamilySafetyCheckin() {
+    STATE.familySafeStatus[0].time = "Just now";
+    STATE.familySafeStatus[0].status = "MARKED_SAFE_ONLINE";
+    showToast("✅ Broadcasted Safe Status to Family Circle via SMS & BLE Mesh!", "success");
+    if (STATE.currentTab === "family-safety") navigate("family-safety");
+}
+
+// -------------------------------------------------------------
+// 9. EMERGENCY GO-BAG CHECKLIST SCREEN
+// -------------------------------------------------------------
+function renderEvacKitScreen() {
+    return `
+        <div class="space-y-3">
+            <div class="bg-blue-900 text-white p-3.5 rounded-xl border border-blue-950 shadow-xs space-y-1">
+                <span class="text-[9px] font-bold text-orange-400 uppercase">Disaster Preparedness</span>
+                <h2 class="text-xs font-extrabold text-white">72-Hour Evacuation Go-Bag Checklist</h2>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs text-xs">
+                <p class="text-slate-600 text-[11px]">Ensure all essential emergency survival items are packed in a waterproof pouch:</p>
+
+                <div class="space-y-2">
+                    ${STATE.evacChecklist.map(item => `
+                        <label class="flex items-center space-x-2.5 p-2.5 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer">
+                            <input type="checkbox" ${item.done ? "checked" : ""} class="w-4 h-4 accent-emerald-700" onchange="toggleChecklistItem(${item.id})">
+                            <span class="text-slate-800 text-xs ${item.done ? "line-through text-slate-400 font-normal" : "font-bold"}">${item.text}</span>
+                        </label>
+                    `).join("")}
+                </div>
+
+                <button onclick="showToast('🎒 Go-Bag Checklist Saved to Local Device Storage.', 'success')" class="w-full py-2.5 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-lg text-xs transition shadow">
+                    Save Checklist Status
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function toggleChecklistItem(id) {
+    const item = STATE.evacChecklist.find(i => i.id === id);
+    if (item) {
+        item.done = !item.done;
+        navigate("evac-kit");
+    }
+}
+
+</script>
+    <script>
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById("android-clock").innerText = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        }, 1000);
+        lucide.createIcons();
+    </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "name": "rakshacast",
+  "version": "1.0.0",
+  "description": "RakshaCast - AI-Powered Hyper-Local Disaster Early-Warning & Response App (SIH26077)",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "android",
+    "sih2026",
+    "disaster-management",
+    "early-warning",
+    "nowcasting",
+    "imd"
+  ],
+  "author": "RakshaCast Team (SIH26077)",
+  "license": "MIT"
+}
