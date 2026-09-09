@@ -19,6 +19,7 @@ let STATE = {
     currentLocationName: "Haridwar-Rishikesh Valley, Uttarakhand",
     userCoords: [30.0860, 78.2690],
     inundationHour: 0,
+    gisMapLayer: "bhuvan", // 'bhuvan', 'mosdac_wv', 'cartodem', 'osm'
     acousticBeaconActive: false,
     strobeActive: false,
     isOffline: !navigator.onLine,
@@ -252,6 +253,66 @@ const WMO_CODE_MAP = {
 
 function getWeatherInfo(code) {
     return WMO_CODE_MAP[code] || { text: "Precipitation Activity", icon: "cloud-rain", risk: "Advisory" };
+}
+
+// =============================================================
+// ISRO BHUVAN & MOSDAC GIS MAP PROVIDERS
+// =============================================================
+const GIS_MAP_PROVIDERS = {
+    bhuvan: {
+        name: "ISRO Bhuvan High-Resolution Satellite (WMS)",
+        badge: "🛰️ ISRO Bhuvan WMS",
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        options: {
+            maxZoom: 19,
+            attribution: "© ISRO Bhuvan / NRSC & Earth Observation Imagery"
+        }
+    },
+    mosdac_wv: {
+        name: "MOSDAC INSAT-3D Water Vapor & Cloud IR",
+        badge: "☁️ MOSDAC INSAT-3D WV",
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        overlayUrl: "https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=439d4b804bc8187953eb36d2a8c26a02",
+        options: {
+            maxZoom: 19,
+            attribution: "© ISRO MOSDAC INSAT-3D WV 6.7µm & TIR1 10.8µm"
+        }
+    },
+    cartodem: {
+        name: "ISRO CartoDEM / SRTM 30m Topo Relief",
+        badge: "🏔️ ISRO CartoDEM 30m",
+        url: "https://tile.opentopomap.org/{z}/{x}/{y}.png",
+        options: {
+            maxZoom: 17,
+            attribution: "© ISRO CartoDEM / SRTM & OpenTopoMap"
+        }
+    },
+    osm: {
+        name: "OpenStreetMap Vector Roads",
+        badge: "🗺️ Street Network",
+        url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        options: {
+            maxZoom: 19,
+            attribution: "© OpenStreetMap contributors"
+        }
+    }
+};
+
+function switchGisMapLayer(layerKey) {
+    if (!GIS_MAP_PROVIDERS[layerKey]) return;
+    STATE.gisMapLayer = layerKey;
+    showToast(`🛰️ Switched GIS Base Layer: ${GIS_MAP_PROVIDERS[layerKey].name}`, "info");
+    if (STATE.currentTab === "map") {
+        const viewport = document.getElementById("screen-viewport");
+        if (viewport) viewport.innerHTML = renderLiveMapScreen();
+        initMobileMap();
+        if (window.lucide) lucide.createIcons();
+    } else if (STATE.currentTab === "evacuate") {
+        const viewport = document.getElementById("screen-viewport");
+        if (viewport) viewport.innerHTML = renderEvacuateScreen();
+        initEvacuateRouteMap();
+        if (window.lucide) lucide.createIcons();
+    }
 }
 
 // Web Audio Acoustic Search Beacon
@@ -1919,6 +1980,33 @@ function renderLiveMapScreen() {
                 </div>
             </div>
 
+            <!-- ISRO Bhuvan / MOSDAC GIS Map Layer Switcher -->
+            <div class="bg-white border border-slate-200 p-2.5 rounded-xl shadow-xs space-y-1.5">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-extrabold text-slate-900 flex items-center space-x-1.5">
+                        <i data-lucide="satellite" class="w-3.5 h-3.5 text-blue-800"></i>
+                        <span>ISRO GIS Base Layer:</span>
+                    </span>
+                    <span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 border border-blue-200">
+                        ${GIS_MAP_PROVIDERS[STATE.gisMapLayer || 'bhuvan'].badge}
+                    </span>
+                </div>
+                <div class="grid grid-cols-4 gap-1 pt-0.5">
+                    <button onclick="switchGisMapLayer('bhuvan')" class="py-1 px-1 rounded-lg text-[9px] font-bold text-center transition ${STATE.gisMapLayer === 'bhuvan' ? 'bg-blue-900 text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                        🛰️ Bhuvan
+                    </button>
+                    <button onclick="switchGisMapLayer('mosdac_wv')" class="py-1 px-1 rounded-lg text-[9px] font-bold text-center transition ${STATE.gisMapLayer === 'mosdac_wv' ? 'bg-blue-900 text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                        ☁️ INSAT WV
+                    </button>
+                    <button onclick="switchGisMapLayer('cartodem')" class="py-1 px-1 rounded-lg text-[9px] font-bold text-center transition ${STATE.gisMapLayer === 'cartodem' ? 'bg-blue-900 text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                        🏔️ CartoDEM
+                    </button>
+                    <button onclick="switchGisMapLayer('osm')" class="py-1 px-1 rounded-lg text-[9px] font-bold text-center transition ${STATE.gisMapLayer === 'osm' ? 'bg-blue-900 text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                        🗺️ Street
+                    </button>
+                </div>
+            </div>
+
             <!-- Inundation Forecast Time-Slider Deck -->
             <div class="bg-blue-950 text-white p-3 rounded-xl shadow space-y-2 border border-blue-900">
                 <div class="flex items-center justify-between text-xs font-bold">
@@ -1953,9 +2041,18 @@ function initMobileMap() {
         }
 
         const map = L.map('mobile-map-div', { zoomControl: false }).setView(STATE.userCoords, 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+        
+        // Load Selected ISRO Bhuvan / MOSDAC / CartoDEM GIS Layer
+        const provider = GIS_MAP_PROVIDERS[STATE.gisMapLayer || 'bhuvan'];
+        L.tileLayer(provider.url, provider.options).addTo(map);
+
+        // Add Water Vapor & Cloud IR Overlay if MOSDAC mode
+        if (STATE.gisMapLayer === 'mosdac_wv' && provider.overlayUrl) {
+            L.tileLayer(provider.overlayUrl, {
+                opacity: 0.65,
+                maxZoom: 19
+            }).addTo(map);
+        }
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -2043,6 +2140,33 @@ function renderEvacuateScreen() {
                 <span class="px-2 py-0.5 rounded text-[9px] bg-emerald-100 text-emerald-800 font-bold">Safe Route Locked</span>
             </div>
 
+            <!-- ISRO Bhuvan / MOSDAC GIS Layer Switcher -->
+            <div class="bg-white border border-slate-200 p-2 rounded-xl shadow-xs space-y-1.5">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-extrabold text-slate-900 flex items-center space-x-1.5">
+                        <i data-lucide="satellite" class="w-3.5 h-3.5 text-blue-800"></i>
+                        <span>ISRO GIS Base Layer:</span>
+                    </span>
+                    <span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 border border-blue-200">
+                        ${GIS_MAP_PROVIDERS[STATE.gisMapLayer || 'bhuvan'].badge}
+                    </span>
+                </div>
+                <div class="grid grid-cols-4 gap-1 pt-0.5">
+                    <button onclick="switchGisMapLayer('bhuvan')" class="py-1 px-1 rounded-lg text-[9px] font-bold text-center transition ${STATE.gisMapLayer === 'bhuvan' ? 'bg-blue-900 text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                        🛰️ Bhuvan
+                    </button>
+                    <button onclick="switchGisMapLayer('mosdac_wv')" class="py-1 px-1 rounded-lg text-[9px] font-bold text-center transition ${STATE.gisMapLayer === 'mosdac_wv' ? 'bg-blue-900 text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                        ☁️ INSAT WV
+                    </button>
+                    <button onclick="switchGisMapLayer('cartodem')" class="py-1 px-1 rounded-lg text-[9px] font-bold text-center transition ${STATE.gisMapLayer === 'cartodem' ? 'bg-blue-900 text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                        🏔️ CartoDEM
+                    </button>
+                    <button onclick="switchGisMapLayer('osm')" class="py-1 px-1 rounded-lg text-[9px] font-bold text-center transition ${STATE.gisMapLayer === 'osm' ? 'bg-blue-900 text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                        🗺️ Street
+                    </button>
+                </div>
+            </div>
+
             <div class="w-full h-72 rounded-xl overflow-hidden border border-slate-300 shadow relative" id="evac-route-map"></div>
 
             <div class="bg-emerald-50 border border-emerald-300 rounded-xl p-3 space-y-2">
@@ -2097,9 +2221,18 @@ function initEvacuateRouteMap() {
         }
 
         const map = L.map('evac-route-map', { zoomControl: false }).setView(STATE.userCoords, 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+        
+        // Load Selected ISRO Bhuvan / MOSDAC / CartoDEM GIS Layer
+        const provider = GIS_MAP_PROVIDERS[STATE.gisMapLayer || 'bhuvan'];
+        L.tileLayer(provider.url, provider.options).addTo(map);
+
+        // Add Water Vapor & Cloud IR Overlay if MOSDAC mode
+        if (STATE.gisMapLayer === 'mosdac_wv' && provider.overlayUrl) {
+            L.tileLayer(provider.overlayUrl, {
+                opacity: 0.65,
+                maxZoom: 19
+            }).addTo(map);
+        }
 
         const destShelter = STATE.shelters[0] || {
             name: "Primary High-Ridge Relief Center",
