@@ -1694,7 +1694,7 @@ function renderLiveMapScreen() {
                     </div>
                     <div class="flex items-center space-x-1.5">
                         <span class="w-3 h-3 rounded-full bg-red-500 border border-red-700 shrink-0"></span>
-                        <span class="text-slate-800 font-medium"><b>Red:</b> Cyclone/Wind (1.5 km)</span>
+                        <span class="text-slate-800 font-medium"><b>Red:</b> Cloudburst Core (1.5 km)</span>
                     </div>
                     <div class="flex items-center space-x-1.5">
                         <span class="w-3 h-3 rounded-full bg-purple-500 border border-purple-700 shrink-0"></span>
@@ -1757,14 +1757,14 @@ function initMobileMap() {
             dashArray: "6, 6"
         }).addTo(map).bindPopup("<b>🌊 Flood Inundation Hazard Radius (Blue)</b><br>Surge Radius: 1.2 km • Water Depth: +2.45m");
 
-        // 2. RED RADIUS: Cyclone Wind & Heavy Impact Zone (1.5 km)
+        // 2. RED RADIUS: Cloudburst Core & Flash Inundation Trigger Zone (1.5 km)
         L.circle([STATE.userCoords[0] - 0.009, STATE.userCoords[1] + 0.012], {
             radius: 1500,
             color: "#dc2626",
             fillColor: "#ef4444",
-            fillOpacity: 0.18,
+            fillOpacity: 0.22,
             weight: 2
-        }).addTo(map).bindPopup("<b>🌪️ Cyclone & High Gust Hazard Radius (Red)</b><br>Wind Velocity: 42 km/h • Radius: 1.5 km");
+        }).addTo(map).bindPopup("<b>🌧️ Cloudburst & Extreme Downpour Core (Red)</b><br>Rainfall Rate: &gt;100 mm/h • Radius: 1.5 km<br><span style='font-size:10px; color:#64748b;'>INSAT-3D CTT Drop: -16.4°C / 15min</span>");
 
         // 3. PURPLE RADIUS: Lightning & Thunderstorm Cell (800m)
         L.circle([STATE.userCoords[0] + 0.012, STATE.userCoords[1] - 0.010], {
