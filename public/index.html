@@ -156,20 +156,20 @@
         </header>
 
         <!-- 3. SCROLLABLE SCREEN CONTENT CONTAINER -->
-        <div id="screen-viewport" class="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-3.5 pb-24 bg-slate-100">
+        <div id="screen-viewport" class="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-3.5 pb-28 bg-slate-100">
             <!-- Dynamic Screen Views -->
         </div>
 
         <!-- 4. FLOATING SOS EMERGENCY BUTTON -->
         <div id="floating-sos-deck" class="absolute bottom-20 right-4 z-40">
-            <button onclick="navigate('sos')" class="w-14 h-14 rounded-full bg-red-600 text-white flex flex-col items-center justify-center shadow-xl border-2 border-white active:scale-95 transition hover:bg-red-700">
+            <button onclick="navigate('sos')" class="w-13 h-13 rounded-full bg-red-600 text-white flex flex-col items-center justify-center shadow-xl border-2 border-white active:scale-95 transition hover:bg-red-700">
                 <i data-lucide="radio" class="w-5 h-5"></i>
                 <span class="text-[8px] font-black uppercase tracking-wider">SOS</span>
             </button>
         </div>
 
         <!-- 5. ANDROID BOTTOM NAVIGATION BAR (Clean White / Blue Accent) -->
-        <nav id="bottom-tab-bar" class="bg-white border-t border-slate-300 px-2 py-2 flex items-center justify-around z-50 absolute bottom-0 w-full shadow-lg">
+        <nav id="bottom-tab-bar" class="bg-white border-t border-slate-200 px-1 py-1.5 flex items-center justify-around z-50 shrink-0 w-full shadow-[0_-4px_12px_rgba(0,0,0,0.06)] min-h-[60px] pb-safe">
             <!-- Bottom Tabs populated dynamically -->
         </nav>
 

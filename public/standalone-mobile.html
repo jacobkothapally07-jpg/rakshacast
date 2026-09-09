@@ -156,20 +156,20 @@
         </header>
 
         <!-- 3. SCROLLABLE SCREEN CONTENT CONTAINER -->
-        <div id="screen-viewport" class="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-3.5 pb-24 bg-slate-100">
+        <div id="screen-viewport" class="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-3.5 pb-28 bg-slate-100">
             <!-- Dynamic Screen Views -->
         </div>
 
         <!-- 4. FLOATING SOS EMERGENCY BUTTON -->
         <div id="floating-sos-deck" class="absolute bottom-20 right-4 z-40">
-            <button onclick="navigate('sos')" class="w-14 h-14 rounded-full bg-red-600 text-white flex flex-col items-center justify-center shadow-xl border-2 border-white active:scale-95 transition hover:bg-red-700">
+            <button onclick="navigate('sos')" class="w-13 h-13 rounded-full bg-red-600 text-white flex flex-col items-center justify-center shadow-xl border-2 border-white active:scale-95 transition hover:bg-red-700">
                 <i data-lucide="radio" class="w-5 h-5"></i>
                 <span class="text-[8px] font-black uppercase tracking-wider">SOS</span>
             </button>
         </div>
 
         <!-- 5. ANDROID BOTTOM NAVIGATION BAR (Clean White / Blue Accent) -->
-        <nav id="bottom-tab-bar" class="bg-white border-t border-slate-300 px-2 py-2 flex items-center justify-around z-50 absolute bottom-0 w-full shadow-lg">
+        <nav id="bottom-tab-bar" class="bg-white border-t border-slate-200 px-1 py-1.5 flex items-center justify-around z-50 shrink-0 w-full shadow-[0_-4px_12px_rgba(0,0,0,0.06)] min-h-[60px] pb-safe">
             <!-- Bottom Tabs populated dynamically -->
         </nav>
 
@@ -511,6 +511,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     loadSettingsFromStorage();
     loadCachedWeather();
     initCrossDeviceSync();
+    
+    // Register Service Worker for Background Web Push & Offline Notifications
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js")
+            .then(reg => {
+                console.log("👷 [RakshaCast SW] Service Worker active & listening for background push:", reg.scope);
+            })
+            .catch(err => {
+                console.warn("[RakshaCast SW] Registration failed:", err);
+            });
+    }
     
     window.addEventListener("online", () => {
         STATE.isOffline = false;
@@ -1636,15 +1647,17 @@ function updateBottomNav() {
         { id: "map", label: "Live Map", icon: "map" },
         { id: "evacuate", label: "Evacuate", icon: "navigation" },
         { id: "alerts", label: "Alerts", icon: "bell" },
-        { id: "profile", label: STATE.isAuthority ? "Officer Profile" : "Citizen Profile", icon: STATE.isAuthority ? "shield" : "user" }
+        { id: "profile", label: STATE.isAuthority ? "Officer" : "Profile", icon: STATE.isAuthority ? "shield" : "user" }
     ];
 
     nav.innerHTML = tabs.map(t => {
         const isActive = STATE.currentTab === t.id;
         return `
-            <button onclick="navigate('${t.id}')" class="flex flex-col items-center justify-center py-1 flex-1 ${isActive ? 'text-blue-900 font-extrabold' : 'text-slate-500 font-medium'} transition active:scale-90">
-                <i data-lucide="${t.icon}" class="w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}"></i>
-                <span class="text-[9px] mt-0.5">${t.label}</span>
+            <button onclick="navigate('${t.id}')" class="flex flex-col items-center justify-center py-1 px-1 flex-1 h-full select-none ${isActive ? 'text-blue-900 font-extrabold' : 'text-slate-500 font-medium hover:text-slate-700'} transition active:scale-90">
+                <div class="p-1 rounded-xl ${isActive ? 'bg-blue-50 text-blue-900' : 'text-slate-500'} flex items-center justify-center transition">
+                    <i data-lucide="${t.icon}" class="w-4 h-4 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}"></i>
+                </div>
+                <span class="text-[9px] leading-none mt-0.5 tracking-tight">${t.label}</span>
             </button>
         `;
     }).join("");
@@ -3088,6 +3101,31 @@ function closeModal() {
 function toggleSetting(key, val) {
     STATE.settings[key] = val;
     saveSettingsToStorage();
+    
+    if (key === "pushNotifications" && val) {
+        if ("Notification" in window && Notification.permission !== "granted") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    showToast("🔔 Background Push Notifications Enabled!", "success");
+                    // Trigger a welcome/test system notification
+                    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({
+                            type: "TEST_NOTIFICATION"
+                        });
+                    } else {
+                        new Notification("🚨 RakshaCast Early Warning Network", {
+                            body: "Push alerts active. You will receive critical cloudburst & flood alerts even when the app is closed.",
+                            icon: "https://img.icons8.com/fluency/192/shield.png"
+                        });
+                    }
+                } else {
+                    showToast("⚠️ Push permission denied in browser settings.", "critical");
+                }
+            });
+            return;
+        }
+    }
+    
     showToast(`Updated ${key} preference.`, "success");
 }
 

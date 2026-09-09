@@ -333,6 +333,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     loadCachedWeather();
     initCrossDeviceSync();
     
+    // Register Service Worker for Background Web Push & Offline Notifications
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js")
+            .then(reg => {
+                console.log("👷 [RakshaCast SW] Service Worker active & listening for background push:", reg.scope);
+            })
+            .catch(err => {
+                console.warn("[RakshaCast SW] Registration failed:", err);
+            });
+    }
+    
     window.addEventListener("online", () => {
         STATE.isOffline = false;
         STATE.dataStatus = "LIVE";
@@ -1457,15 +1468,17 @@ function updateBottomNav() {
         { id: "map", label: "Live Map", icon: "map" },
         { id: "evacuate", label: "Evacuate", icon: "navigation" },
         { id: "alerts", label: "Alerts", icon: "bell" },
-        { id: "profile", label: STATE.isAuthority ? "Officer Profile" : "Citizen Profile", icon: STATE.isAuthority ? "shield" : "user" }
+        { id: "profile", label: STATE.isAuthority ? "Officer" : "Profile", icon: STATE.isAuthority ? "shield" : "user" }
     ];
 
     nav.innerHTML = tabs.map(t => {
         const isActive = STATE.currentTab === t.id;
         return `
-            <button onclick="navigate('${t.id}')" class="flex flex-col items-center justify-center py-1 flex-1 ${isActive ? 'text-blue-900 font-extrabold' : 'text-slate-500 font-medium'} transition active:scale-90">
-                <i data-lucide="${t.icon}" class="w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}"></i>
-                <span class="text-[9px] mt-0.5">${t.label}</span>
+            <button onclick="navigate('${t.id}')" class="flex flex-col items-center justify-center py-1 px-1 flex-1 h-full select-none ${isActive ? 'text-blue-900 font-extrabold' : 'text-slate-500 font-medium hover:text-slate-700'} transition active:scale-90">
+                <div class="p-1 rounded-xl ${isActive ? 'bg-blue-50 text-blue-900' : 'text-slate-500'} flex items-center justify-center transition">
+                    <i data-lucide="${t.icon}" class="w-4 h-4 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}"></i>
+                </div>
+                <span class="text-[9px] leading-none mt-0.5 tracking-tight">${t.label}</span>
             </button>
         `;
     }).join("");
@@ -2909,6 +2922,31 @@ function closeModal() {
 function toggleSetting(key, val) {
     STATE.settings[key] = val;
     saveSettingsToStorage();
+    
+    if (key === "pushNotifications" && val) {
+        if ("Notification" in window && Notification.permission !== "granted") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    showToast("🔔 Background Push Notifications Enabled!", "success");
+                    // Trigger a welcome/test system notification
+                    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({
+                            type: "TEST_NOTIFICATION"
+                        });
+                    } else {
+                        new Notification("🚨 RakshaCast Early Warning Network", {
+                            body: "Push alerts active. You will receive critical cloudburst & flood alerts even when the app is closed.",
+                            icon: "https://img.icons8.com/fluency/192/shield.png"
+                        });
+                    }
+                } else {
+                    showToast("⚠️ Push permission denied in browser settings.", "critical");
+                }
+            });
+            return;
+        }
+    }
+    
     showToast(`Updated ${key} preference.`, "success");
 }
 
