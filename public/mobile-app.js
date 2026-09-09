@@ -201,20 +201,27 @@ let beaconInterval = null;
 
 function toggleAcousticSearchBeacon() {
     STATE.acousticBeaconActive = !STATE.acousticBeaconActive;
-    const btn = document.getElementById("acoustic-beacon-btn");
+    const btns = document.querySelectorAll("#acoustic-beacon-btn, .acoustic-beacon-btn");
     
     if (STATE.acousticBeaconActive) {
-        if (btn) btn.className = "flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow animate-pulse";
+        btns.forEach(btn => {
+            btn.className = "flex-1 py-3 bg-red-600 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md animate-pulse active:scale-95 transition";
+            btn.innerHTML = `<i data-lucide="volume-2" class="w-4 h-4 text-white"></i><span>Sonar Active (880Hz)</span>`;
+        });
         showToast("🔊 Acoustic Search Beacon ACTIVATED: Emitting 880Hz Sonar Pulses for Rescue Canines & Boats", "critical");
         
         beaconInterval = setInterval(() => {
             playSirenPulse();
         }, 1200);
     } else {
-        if (btn) btn.className = "flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 flex items-center justify-center space-x-1.5";
+        btns.forEach(btn => {
+            btn.className = "flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 flex items-center justify-center space-x-1.5 active:scale-95 transition";
+            btn.innerHTML = `<i data-lucide="volume-2" class="w-4 h-4 text-red-600"></i><span>Acoustic Beacon (880Hz)</span>`;
+        });
         if (beaconInterval) clearInterval(beaconInterval);
         showToast("Acoustic Search Beacon Deactivated.", "info");
     }
+    if (window.lucide) lucide.createIcons();
 }
 
 function playSirenPulse() {
@@ -242,14 +249,21 @@ function playSirenPulse() {
 // SOS Morse Strobe
 function toggleFlashlightStrobe() {
     STATE.strobeActive = !STATE.strobeActive;
-    const btn = document.getElementById("strobe-btn");
+    const btns = document.querySelectorAll("#strobe-btn, .strobe-btn");
     if (STATE.strobeActive) {
-        if (btn) btn.className = "flex-1 py-2.5 bg-amber-600 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow animate-pulse";
+        btns.forEach(btn => {
+            btn.className = "flex-1 py-3 bg-amber-600 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md animate-pulse active:scale-95 transition";
+            btn.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-white"></i><span>Strobe Active (··· --- ···)</span>`;
+        });
         showToast("🔦 SOS Morse Strobe Active: (··· --- ···)", "success");
     } else {
-        if (btn) btn.className = "flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 flex items-center justify-center space-x-1.5";
+        btns.forEach(btn => {
+            btn.className = "flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 flex items-center justify-center space-x-1.5 active:scale-95 transition";
+            btn.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-amber-600"></i><span>SOS Morse Strobe</span>`;
+        });
         showToast("Flashlight Strobe Deactivated.", "info");
     }
+    if (window.lucide) lucide.createIcons();
 }
 
 // =============================================================
@@ -1020,26 +1034,47 @@ function renderHomeScreen() {
                 </div>
             ` : ''}
 
-            <!-- SECTION 2: CURRENT RISK HERO CARD -->
-            <div class="bg-white border-l-4 ${t.riskLevel === 'CRITICAL' ? 'border-red-600' : (t.riskLevel === 'HIGH' ? 'border-amber-600' : (t.riskLevel === 'MODERATE' ? 'border-blue-600' : (t.riskLevel === 'CAUTION' ? 'border-orange-500' : 'border-emerald-600')))} rounded-xl p-4 shadow-sm border border-slate-200 space-y-3">
+            <!-- SECTION 2: ENLARGED ATMOSPHERIC RISK ANALYSIS HERO CARD -->
+            <div class="bg-gradient-to-br ${t.riskLevel === 'CRITICAL' ? 'from-red-50 via-white to-red-50/50 border-red-600' : (t.riskLevel === 'HIGH' ? 'from-amber-50 via-white to-amber-50/50 border-amber-500' : (t.riskLevel === 'MODERATE' ? 'from-blue-50 via-white to-blue-50/50 border-blue-600' : (t.riskLevel === 'CAUTION' ? 'from-orange-50 via-white to-orange-50/50 border-orange-500' : 'from-emerald-50 via-white to-emerald-50/50 border-emerald-600')))} border-l-[6px] rounded-2xl p-4.5 sm:p-5 shadow-md border border-slate-200/90 space-y-3.5">
+                
                 <div class="flex items-center justify-between">
-                    <span class="px-2.5 py-0.5 rounded text-[10px] font-black tracking-wide uppercase ${t.riskLevel === 'CRITICAL' ? 'bg-red-100 text-red-800 border-red-300' : (t.riskLevel === 'HIGH' ? 'bg-amber-100 text-amber-800 border-amber-300' : (t.riskLevel === 'MODERATE' ? 'bg-blue-100 text-blue-800 border-blue-300' : (t.riskLevel === 'CAUTION' ? 'bg-orange-100 text-orange-800 border-orange-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300')))} border">
-                        ${t.riskLevel} ATMOSPHERIC RISK (${t.riskScore}/100)
+                    <span class="px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase ${t.riskLevel === 'CRITICAL' ? 'bg-red-600 text-white shadow-sm animate-pulse' : (t.riskLevel === 'HIGH' ? 'bg-amber-500 text-white shadow-sm' : (t.riskLevel === 'MODERATE' ? 'bg-blue-600 text-white' : (t.riskLevel === 'CAUTION' ? 'bg-orange-500 text-white' : 'bg-emerald-700 text-white')))} flex items-center space-x-1.5">
+                        <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                        <span>${t.riskLevel} RISK INDEX</span>
                     </span>
-                    <span class="text-[11px] text-slate-600 font-bold">Action Window: <b class="${t.riskLevel === 'CRITICAL' ? 'text-red-600' : 'text-slate-900'} font-black">${t.leadTimeHours} hrs</b></span>
+                    <div class="text-right">
+                        <span class="text-[9px] uppercase font-bold text-slate-500 block">Action Window</span>
+                        <span class="text-sm font-black ${t.riskLevel === 'CRITICAL' ? 'text-red-600' : 'text-slate-900'}">${t.leadTimeHours} hrs</span>
+                    </div>
                 </div>
 
                 <div>
-                    <h2 class="text-base font-extrabold text-slate-900 leading-snug">${t.heroTitle || "Severe Weather Nowcast"}</h2>
-                    <p class="text-xs text-slate-700 leading-relaxed mt-1">${t.heroDesc || `Rain intensity: ${t.rainfall} mm/h. Weather condition: ${t.weatherCondition}.`}</p>
+                    <h2 class="text-lg font-black text-slate-900 leading-snug tracking-tight">${t.heroTitle || "Atmospheric Disaster Nowcast"}</h2>
+                    <p class="text-xs text-slate-700 leading-relaxed mt-1 font-medium">${t.heroDesc || `Rain intensity: ${t.rainfall} mm/h. Weather condition: ${t.weatherCondition}.`}</p>
+                </div>
+
+                <!-- Real-Time Atmospheric Risk Gauge Chips -->
+                <div class="grid grid-cols-3 gap-2 pt-0.5 text-center">
+                    <div class="p-2.5 bg-white/90 rounded-xl border border-slate-200/80 shadow-xs">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase block">Threat Level</span>
+                        <div class="text-sm font-black font-mono ${t.riskLevel === 'CRITICAL' ? 'text-red-600' : (t.riskLevel === 'HIGH' ? 'text-amber-600' : 'text-blue-900')} mt-0.5">${t.riskScore}<span class="text-[10px] text-slate-400 font-normal">/100</span></div>
+                    </div>
+                    <div class="p-2.5 bg-white/90 rounded-xl border border-slate-200/80 shadow-xs">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase block">Surge Depth</span>
+                        <div class="text-sm font-black font-mono text-blue-900 mt-0.5">+${t.waterLevel}m</div>
+                    </div>
+                    <div class="p-2.5 bg-white/90 rounded-xl border border-slate-200/80 shadow-xs">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase block">Precipitation</span>
+                        <div class="text-sm font-black font-mono text-slate-900 mt-0.5">${t.rainfall} <span class="text-[9px] text-slate-500">mm/h</span></div>
+                    </div>
                 </div>
 
                 <div class="flex items-center space-x-2 pt-1">
-                    <button onclick="navigate('evacuate')" class="flex-1 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center space-x-1.5 transition active:scale-95">
+                    <button onclick="navigate('evacuate')" class="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center space-x-1.5 transition active:scale-95">
                         <i data-lucide="navigation" class="w-4 h-4"></i>
                         <span>Evacuate Safe Route</span>
                     </button>
-                    <button onclick="navigate('sos')" class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center space-x-1.5 transition active:scale-95 ${t.riskLevel === 'CRITICAL' ? 'animate-pulse' : ''}">
+                    <button onclick="navigate('sos')" class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center space-x-1.5 transition active:scale-95 ${t.riskLevel === 'CRITICAL' ? 'animate-pulse' : ''}">
                         <i data-lucide="radio" class="w-4 h-4"></i>
                         <span>Send SOS Distress</span>
                     </button>
@@ -1252,21 +1287,6 @@ function renderHomeScreen() {
                 </button>
             </div>
 
-            <!-- Hardware Search Beacon & Flashlight Strobe Controls -->
-            <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2 shadow-xs">
-                <p class="font-bold text-slate-800 text-[10px] uppercase">Emergency Hardware Tools (Darkness & Trap)</p>
-                <div class="flex space-x-2">
-                    <button id="acoustic-beacon-btn" onclick="toggleAcousticSearchBeacon()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 flex items-center justify-center space-x-1.5 transition">
-                        <i data-lucide="volume-2" class="w-4 h-4 text-red-600"></i>
-                        <span>Acoustic Beacon (880Hz)</span>
-                    </button>
-                    <button id="strobe-btn" onclick="toggleFlashlightStrobe()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 flex items-center justify-center space-x-1.5 transition">
-                        <i data-lucide="zap" class="w-4 h-4 text-amber-600"></i>
-                        <span>SOS Morse Strobe</span>
-                    </button>
-                </div>
-            </div>
-
             <!-- Helpline Box -->
             <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
                 <div class="flex items-center space-x-2.5">
@@ -1460,6 +1480,28 @@ function renderEvacuateScreen() {
                     </button>
                     <button onclick="requestEvacuationExtraction()" class="flex-1 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold shadow active:scale-95 transition">
                         Request Rescue Pick
+                    </button>
+                </div>
+            </div>
+
+            <!-- Field Evacuation Hardware Tools (Acoustic Sonar & Morse Strobe) -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-3.5 space-y-2.5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5">
+                        <i data-lucide="radio-tower" class="w-4 h-4 text-red-600"></i>
+                        <h3 class="font-extrabold text-slate-900 text-xs uppercase tracking-wide">Evacuation Field Search Tools</h3>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-slate-100 text-slate-700 border border-slate-200">Hardware Beacon</span>
+                </div>
+                <p class="text-[10px] text-slate-600 leading-normal">Guide rescue canines & aerial search teams with high-frequency 880Hz audio or night optical strobe.</p>
+                <div class="flex space-x-2 pt-0.5">
+                    <button id="acoustic-beacon-btn" onclick="toggleAcousticSearchBeacon()" class="acoustic-beacon-btn flex-1 py-3 ${STATE.acousticBeaconActive ? 'bg-red-600 text-white shadow-md animate-pulse' : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'} font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition active:scale-95">
+                        <i data-lucide="volume-2" class="w-4 h-4 ${STATE.acousticBeaconActive ? 'text-white' : 'text-red-600'}"></i>
+                        <span>${STATE.acousticBeaconActive ? 'Sonar Active (880Hz)' : 'Acoustic Beacon (880Hz)'}</span>
+                    </button>
+                    <button id="strobe-btn" onclick="toggleFlashlightStrobe()" class="strobe-btn flex-1 py-3 ${STATE.strobeActive ? 'bg-amber-600 text-white shadow-md animate-pulse' : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'} font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition active:scale-95">
+                        <i data-lucide="zap" class="w-4 h-4 ${STATE.strobeActive ? 'text-white' : 'text-amber-600'}"></i>
+                        <span>${STATE.strobeActive ? 'Strobe Active (··· --- ···)' : 'SOS Morse Strobe'}</span>
                     </button>
                 </div>
             </div>
@@ -1768,6 +1810,28 @@ function renderSOSScreen() {
                     <i data-lucide="radio" class="w-4 h-4"></i>
                     <span>Transmit Immediate SOS to NDRF Control</span>
                 </button>
+            </div>
+
+            <!-- On-Site Trap & Darkness Rescue Tools -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-2.5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5">
+                        <i data-lucide="volume-2" class="w-4 h-4 text-red-600"></i>
+                        <h3 class="font-extrabold text-slate-900 text-xs uppercase tracking-wide">On-Site Trapped Victim Search Signals</h3>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-red-50 text-red-700 border border-red-200">Hardware Rescue</span>
+                </div>
+                <p class="text-[10px] text-slate-600 leading-normal">If trapped under rubble, attic, or fast water: emit continuous 880Hz audio sonar or SOS optical strobe.</p>
+                <div class="flex space-x-2 pt-0.5">
+                    <button id="acoustic-beacon-btn-sos" onclick="toggleAcousticSearchBeacon()" class="acoustic-beacon-btn flex-1 py-3 ${STATE.acousticBeaconActive ? 'bg-red-600 text-white shadow-md animate-pulse' : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'} font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition active:scale-95">
+                        <i data-lucide="volume-2" class="w-4 h-4 ${STATE.acousticBeaconActive ? 'text-white' : 'text-red-600'}"></i>
+                        <span>${STATE.acousticBeaconActive ? 'Sonar Active (880Hz)' : 'Acoustic Beacon (880Hz)'}</span>
+                    </button>
+                    <button id="strobe-btn-sos" onclick="toggleFlashlightStrobe()" class="strobe-btn flex-1 py-3 ${STATE.strobeActive ? 'bg-amber-600 text-white shadow-md animate-pulse' : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'} font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition active:scale-95">
+                        <i data-lucide="zap" class="w-4 h-4 ${STATE.strobeActive ? 'text-white' : 'text-amber-600'}"></i>
+                        <span>${STATE.strobeActive ? 'Strobe Active (··· --- ···)' : 'SOS Morse Strobe'}</span>
+                    </button>
+                </div>
             </div>
         </div>
     `;
