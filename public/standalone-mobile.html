@@ -41,6 +41,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Real-Time Cross-Device WebSocket Sync (MQTT.js) -->
+    <script src="https://unpkg.com/mqtt@5.3.5/dist/mqtt.min.js"></script>
     <style>
         body {
             font-family: "Inter", sans-serif;
@@ -390,7 +392,15 @@ let STATE = {
         { id: 3, text: "Prescription Medicines & First Aid", done: true },
         { id: 4, text: "Charged Phone & Powerbank", done: true },
         { id: 5, text: "Emergency Torch & Whistle", done: false }
-    ]
+    ],
+
+    // Real-Time Cross-Device Sync (Live WebSocket Mesh)
+    liveSync: {
+        connected: false,
+        client: null,
+        broadcastChannel: null,
+        channelName: "rakshacast_emergency_bus"
+    }
 };
 
 // Weather Mapping Helpers
@@ -498,6 +508,7 @@ function toggleFlashlightStrobe() {
 document.addEventListener("DOMContentLoaded", async () => {
     loadSettingsFromStorage();
     loadCachedWeather();
+    initCrossDeviceSync();
     
     window.addEventListener("online", () => {
         STATE.isOffline = false;
@@ -1204,6 +1215,8 @@ function loadSettingsFromStorage() {
         if (saved) STATE.settings = { ...STATE.settings, ...JSON.parse(saved) };
         const hist = localStorage.getItem("rakshacast_alert_history");
         if (hist) STATE.alertDeliveryHistory = JSON.parse(hist);
+        const queue = localStorage.getItem("rakshacast_sos_queue");
+        if (queue) STATE.sosQueue = JSON.parse(queue);
     } catch(e) {}
 }
 
@@ -1211,7 +1224,129 @@ function saveSettingsToStorage() {
     try {
         localStorage.setItem("rakshacast_user_settings", JSON.stringify(STATE.settings));
         localStorage.setItem("rakshacast_alert_history", JSON.stringify(STATE.alertDeliveryHistory));
+        localStorage.setItem("rakshacast_sos_queue", JSON.stringify(STATE.sosQueue));
     } catch(e) {}
+}
+
+// =============================================================
+// REAL-TIME CROSS-DEVICE SYNC ENGINE (WEBSOCKET MQTT + BROADCAST CHANNEL)
+// =============================================================
+const SYNC_TOPIC = "rakshacast/emergency/sos_channel_v1";
+
+function initCrossDeviceSync() {
+    // 1. Local Same-Browser Tab Sync (BroadcastChannel + LocalStorage Event)
+    try {
+        if ("BroadcastChannel" in window) {
+            STATE.liveSync.broadcastChannel = new BroadcastChannel("rakshacast_channel");
+            STATE.liveSync.broadcastChannel.onmessage = (event) => {
+                handleIncomingSyncEvent(event.data);
+            };
+        }
+    } catch(e) {}
+
+    window.addEventListener("storage", (e) => {
+        if (e.key === "rakshacast_sos_sync_event" && e.newValue) {
+            try {
+                const event = JSON.parse(e.newValue);
+                handleIncomingSyncEvent(event);
+            } catch(err) {}
+        }
+    });
+
+    // 2. Cross-Device Real-Time Cloud WebSocket Mesh (Public High-Availability Broker)
+    if (typeof mqtt !== "undefined") {
+        try {
+            const brokerUrl = "wss://broker.emqx.io:8084/mqtt";
+            const client = mqtt.connect(brokerUrl, {
+                clean: true,
+                connectTimeout: 5000,
+                clientId: `rakshacast_client_${Math.random().toString(16).slice(2, 8)}`,
+                reconnectPeriod: 3000
+            });
+
+            client.on("connect", () => {
+                console.log("🌐 [RakshaCast Sync] Connected to Live Real-Time Emergency Mesh Gateway");
+                STATE.liveSync.connected = true;
+                client.subscribe(SYNC_TOPIC, { qos: 0 }, (err) => {
+                    if (!err) console.log("📡 [RakshaCast Sync] Subscribed to emergency dispatch channel:", SYNC_TOPIC);
+                });
+            });
+
+            client.on("message", (topic, payload) => {
+                if (topic === SYNC_TOPIC) {
+                    try {
+                        const event = JSON.parse(payload.toString());
+                        handleIncomingSyncEvent(event);
+                    } catch(err) {
+                        console.warn("[RakshaCast Sync] Error parsing sync packet:", err);
+                    }
+                }
+            });
+
+            client.on("error", (err) => {
+                console.warn("[RakshaCast Sync] WebSocket reconnecting:", err.message);
+            });
+
+            STATE.liveSync.client = client;
+        } catch(e) {
+            console.warn("[RakshaCast Sync] Could not init MQTT client:", e);
+        }
+    }
+}
+
+function broadcastCrossDeviceEvent(event) {
+    event.originId = window.__RAKSHACAST_CLIENT_ID__ = window.__RAKSHACAST_CLIENT_ID__ || `client_${Math.random().toString(36).substr(2, 9)}`;
+    event.timestamp = Date.now();
+
+    // Broadcast across same-origin tabs
+    try {
+        if (STATE.liveSync.broadcastChannel) {
+            STATE.liveSync.broadcastChannel.postMessage(event);
+        }
+        localStorage.setItem("rakshacast_sos_sync_event", JSON.stringify(event));
+    } catch(e) {}
+
+    // Broadcast across network to Laptop / Mobile via MQTT WebSocket
+    if (STATE.liveSync.client && STATE.liveSync.client.connected) {
+        try {
+            STATE.liveSync.client.publish(SYNC_TOPIC, JSON.stringify(event));
+            console.log("🚀 [RakshaCast Sync] Broadcasted distress event across cloud WebSocket mesh:", event.type);
+        } catch(e) {}
+    }
+}
+
+function handleIncomingSyncEvent(event) {
+    if (!event || !event.type) return;
+    if (event.originId === window.__RAKSHACAST_CLIENT_ID__) return; // ignore self-broadcast
+
+    if (event.type === "NEW_SOS_DISTRESS" && event.sosRecord) {
+        const incoming = event.sosRecord;
+        // Check if already in queue
+        const exists = STATE.sosQueue.some(s => s.id === incoming.id);
+        if (!exists) {
+            STATE.sosQueue.unshift(incoming);
+            saveSettingsToStorage();
+        }
+
+        // Play loud alert on Laptop / Admin Screen
+        triggerAdminIncidentNotification(incoming);
+
+        // Update UI if currently viewing Authority screen or SOS queue
+        if (STATE.currentTab === "authority" || STATE.currentTab === "profile") {
+            navigate(STATE.currentTab);
+        }
+    } else if (event.type === "RESCUE_TEAM_ASSIGNED" && event.sosId) {
+        const target = STATE.sosQueue.find(s => s.id === event.sosId);
+        if (target) {
+            target.status = "TEAM_EN_ROUTE";
+            target.assignedTeam = event.assignedTeam || "NDRF Bravo Alpha (Motor Boat #4)";
+            saveSettingsToStorage();
+            showToast(`🚨 Rescue update: ${target.assignedTeam} dispatched to ${target.userName}!`, "success");
+            if (STATE.currentTab === "authority" || STATE.currentTab === "profile") {
+                navigate(STATE.currentTab);
+            }
+        }
+    }
 }
 
 // =============================================================
@@ -1242,12 +1377,18 @@ function submitSOSDistress() {
     };
 
     STATE.sosQueue.unshift(newSOS);
+    saveSettingsToStorage();
 
-    // If currently in Citizen mode, give citizen confirmation (NOT alarm self-alert)
+    // Broadcast immediately across all connected devices (Laptops, Desktops, Command Centers)
+    broadcastCrossDeviceEvent({
+        type: "NEW_SOS_DISTRESS",
+        sosRecord: newSOS
+    });
+
+    // If currently in Citizen mode, give citizen confirmation (reassuring prompt)
     if (!STATE.isAuthority) {
         showCitizenConfirmationModal(newSOS);
     } else {
-        // If in Admin mode, trigger Admin dispatch sound & alert
         triggerAdminIncidentNotification(newSOS);
     }
 }
@@ -1273,6 +1414,13 @@ function requestEvacuationExtraction() {
     };
 
     STATE.sosQueue.unshift(newSOS);
+    saveSettingsToStorage();
+
+    // Broadcast to Laptop / NDRF Admin Command
+    broadcastCrossDeviceEvent({
+        type: "NEW_SOS_DISTRESS",
+        sosRecord: newSOS
+    });
 
     if (!STATE.isAuthority) {
         showCitizenConfirmationModal(newSOS);
@@ -1300,7 +1448,7 @@ function showCitizenConfirmationModal(sosRecord) {
             <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs space-y-1.5 text-emerald-950">
                 <p class="font-bold">🚨 NDRF Command Room Alerted!</p>
                 <p class="text-[11px] leading-relaxed">
-                    Your GPS coordinates and family triage parameters have been transmitted to the <b>10th NDRF Battalion Command Room</b>. A rescue team is being assigned.
+                    Your GPS coordinates and family triage parameters have been transmitted to the <b>10th NDRF Battalion Command Room</b> (including connected laptop command desks). A rescue team is being assigned.
                 </p>
                 <div class="pt-1 text-[10px] font-mono text-emerald-800 flex justify-between">
                     <span>Status: <b>SUBMITTED (IN QUEUE)</b></span>
@@ -1326,7 +1474,7 @@ function triggerAdminIncidentNotification(sosRecord) {
     playSirenPulse();
     showToast(`🚨 NEW CITIZEN DISTRESS: ${sosRecord.userName} at ${sosRecord.location}!`, "critical");
     
-    // In-app alert for Admin
+    // In-app alert for Admin / Incident Command Room
     const container = document.getElementById("modal-container");
     if (!container) return;
 
@@ -1363,6 +1511,15 @@ function assignRescueTeam(sosId) {
     if (target) {
         target.status = "TEAM_EN_ROUTE";
         target.assignedTeam = "NDRF Bravo Alpha (Motor Boat #4)";
+        saveSettingsToStorage();
+
+        // Broadcast rescue dispatch update across devices
+        broadcastCrossDeviceEvent({
+            type: "RESCUE_TEAM_ASSIGNED",
+            sosId: sosId,
+            assignedTeam: target.assignedTeam
+        });
+
         showToast(`🚨 Assigned NDRF Motor Boat #4 to ${target.userName}!`, "success");
         if (STATE.currentTab === "authority") {
             const viewport = document.getElementById("screen-viewport");
