@@ -7,7 +7,7 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(self.clients.claim());
 });
 
-// Handle Background Push Notifications
+// Handle Background Push Notifications (from WebPush Server / FCM / VAPID)
 self.addEventListener('push', (event) => {
     let payload = {
         title: '🚨 RAKSHACAST DISASTER ALERT',
@@ -43,6 +43,37 @@ self.addEventListener('push', (event) => {
             data: payload.data
         })
     );
+});
+
+// Handle Messages from the main thread (for background delayed pushes & triggers)
+self.addEventListener('message', (event) => {
+    const data = event.data;
+    if (!data) return;
+
+    if (data.type === 'SHOW_NOTIFICATION') {
+        self.registration.showNotification(data.title || '🚨 RakshaCast Disaster Alert', {
+            body: data.body || 'Critical emergency warning received.',
+            icon: data.icon || 'https://img.icons8.com/fluency/192/shield.png',
+            badge: 'https://img.icons8.com/fluency/96/shield.png',
+            tag: data.tag || ('rakshacast-' + Date.now()),
+            requireInteraction: true,
+            vibrate: [400, 150, 400, 150, 400],
+            data: data.data || { url: '/' }
+        });
+    } else if (data.type === 'SCHEDULE_BACKGROUND_NOTIFICATION') {
+        const delay = data.delayMs || 10000;
+        setTimeout(() => {
+            self.registration.showNotification(data.title || '🚨 RakshaCast Background Test Alert', {
+                body: data.body || 'Verified: Background push notifications are active on this device even with the app minimized!',
+                icon: data.icon || 'https://img.icons8.com/fluency/192/shield.png',
+                badge: 'https://img.icons8.com/fluency/96/shield.png',
+                tag: 'rakshacast-bg-test-' + Date.now(),
+                requireInteraction: true,
+                vibrate: [500, 200, 500, 200, 500],
+                data: { url: '/' }
+            });
+        }, delay);
+    }
 });
 
 // Open application when notification is clicked

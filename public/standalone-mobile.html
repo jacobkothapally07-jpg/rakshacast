@@ -2433,6 +2433,24 @@ function renderCitizenProfileView() {
                         </div>
                         <input type="checkbox" ${s.phoneCallAlerts ? 'checked' : ''} onchange="toggleSetting('phoneCallAlerts', this.checked)" class="w-4 h-4 text-blue-900 rounded">
                     </div>
+
+                    <!-- Background Push Test Trigger -->
+                    <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 space-y-1.5 mt-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-emerald-950 flex items-center space-x-1">
+                                <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-emerald-700"></i>
+                                <span>Background Push Validator</span>
+                            </span>
+                            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-200 text-emerald-900">SW Active</span>
+                        </div>
+                        <button onclick="testDelayedBackgroundPush()" class="w-full py-2 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 shadow-sm transition">
+                            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                            <span>Test Background Push (10s Delay)</span>
+                        </button>
+                        <p class="text-[9px] text-emerald-900 leading-tight">
+                            ⚡ <b>How to test:</b> Tap button above, then immediately <b>minimize your browser</b> or <b>lock your phone screen</b>. In 10s, your device OS will vibrate & push the disaster warning banner!
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -3107,17 +3125,10 @@ function toggleSetting(key, val) {
             Notification.requestPermission().then(permission => {
                 if (permission === "granted") {
                     showToast("🔔 Background Push Notifications Enabled!", "success");
-                    // Trigger a welcome/test system notification
-                    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-                        navigator.serviceWorker.controller.postMessage({
-                            type: "TEST_NOTIFICATION"
-                        });
-                    } else {
-                        new Notification("🚨 RakshaCast Early Warning Network", {
-                            body: "Push alerts active. You will receive critical cloudburst & flood alerts even when the app is closed.",
-                            icon: "https://img.icons8.com/fluency/192/shield.png"
-                        });
-                    }
+                    dispatchSystemPushNotification(
+                        "🚨 RakshaCast Early Warning Network",
+                        "Push alerts active. You will receive critical cloudburst & flood alerts even when the app is minimized."
+                    );
                 } else {
                     showToast("⚠️ Push permission denied in browser settings.", "critical");
                 }
@@ -3127,6 +3138,94 @@ function toggleSetting(key, val) {
     }
     
     showToast(`Updated ${key} preference.`, "success");
+}
+
+function dispatchSystemPushNotification(title, body, tag = "rakshacast-alert") {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+            type: "SHOW_NOTIFICATION",
+            title: title,
+            body: body,
+            tag: tag
+        });
+    } else if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(title, {
+                body: body,
+                icon: "https://img.icons8.com/fluency/192/shield.png",
+                badge: "https://img.icons8.com/fluency/96/shield.png",
+                tag: tag,
+                vibrate: [400, 150, 400, 150, 400],
+                requireInteraction: true
+            });
+        });
+    } else {
+        try {
+            new Notification(title, {
+                body: body,
+                icon: "https://img.icons8.com/fluency/192/shield.png",
+                tag: tag
+            });
+        } catch(e) {}
+    }
+}
+
+function testDelayedBackgroundPush() {
+    if (!("Notification" in window)) {
+        showToast("⚠️ Web Notifications not supported by this browser.", "critical");
+        return;
+    }
+
+    if (Notification.permission !== "granted") {
+        Notification.requestPermission().then(perm => {
+            if (perm === "granted") {
+                executeDelayedPush();
+            } else {
+                showToast("⚠️ Please allow notifications when prompted by your browser!", "critical");
+            }
+        });
+    } else {
+        executeDelayedPush();
+    }
+}
+
+function executeDelayedPush() {
+    showToast("⏳ 10s Timer Started! Lock your phone or minimize the browser now...", "info");
+
+    const title = "🚨 RAKSHACAST DISASTER WARNING (BACKGROUND)";
+    const body = "CRITICAL: Cloudburst trigger (+8.4 kg/m² IWV pool) detected in your sector. Immediate ridge evacuation advised!";
+
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+            type: "SCHEDULE_BACKGROUND_NOTIFICATION",
+            delayMs: 10000,
+            title: title,
+            body: body
+        });
+    } else if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(reg => {
+            setTimeout(() => {
+                reg.showNotification(title, {
+                    body: body,
+                    icon: "https://img.icons8.com/fluency/192/shield.png",
+                    badge: "https://img.icons8.com/fluency/96/shield.png",
+                    vibrate: [500, 200, 500, 200, 500],
+                    requireInteraction: true
+                });
+            }, 10000);
+        });
+    } else {
+        setTimeout(() => {
+            try {
+                new Notification(title, {
+                    body: body,
+                    icon: "https://img.icons8.com/fluency/192/shield.png"
+                });
+            } catch(e) {}
+        }, 10000);
+    }
 }
 
 function testMultiChannelAlertDispatch() {
@@ -3143,6 +3242,7 @@ function testMultiChannelAlertDispatch() {
     } else {
         showToast("✅ Test alert logged to Delivery History.", "success");
     }
+    dispatchSystemPushNotification(`🚨 TEST: ${testRecord.title}`, testRecord.instructions);
 }
 
 async function handleLocationSearch(query) {
