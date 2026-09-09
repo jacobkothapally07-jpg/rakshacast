@@ -1040,6 +1040,8 @@ function loadSettingsFromStorage() {
         if (hist) STATE.alertDeliveryHistory = JSON.parse(hist);
         const queue = localStorage.getItem("rakshacast_sos_queue");
         if (queue) STATE.sosQueue = JSON.parse(queue);
+        const alerts = localStorage.getItem("rakshacast_disaster_alerts");
+        if (alerts) STATE.alerts = JSON.parse(alerts);
     } catch(e) {}
 }
 
@@ -1048,6 +1050,7 @@ function saveSettingsToStorage() {
         localStorage.setItem("rakshacast_user_settings", JSON.stringify(STATE.settings));
         localStorage.setItem("rakshacast_alert_history", JSON.stringify(STATE.alertDeliveryHistory));
         localStorage.setItem("rakshacast_sos_queue", JSON.stringify(STATE.sosQueue));
+        localStorage.setItem("rakshacast_disaster_alerts", JSON.stringify(STATE.alerts));
     } catch(e) {}
 }
 
@@ -1157,6 +1160,47 @@ function handleIncomingSyncEvent(event) {
         // Update UI if currently viewing Authority screen or SOS queue
         if (STATE.currentTab === "authority" || STATE.currentTab === "profile") {
             navigate(STATE.currentTab);
+        }
+    } else if (event.type === "NEW_DISASTER_BROADCAST" && event.alert) {
+        const incomingAlert = event.alert;
+        const exists = STATE.alerts.some(a => a.id === incomingAlert.id);
+        if (!exists) {
+            STATE.alerts.unshift(incomingAlert);
+            saveSettingsToStorage();
+        }
+
+        // Play alert sound for citizen / user and show banner
+        playSirenPulse();
+        showToast(`🚨 OFFICIAL WARNING: ${incomingAlert.title}`, incomingAlert.severity === 'CRITICAL' ? 'critical' : 'info');
+
+        // Show instant in-app alert modal
+        const container = document.getElementById("modal-container");
+        if (container) {
+            container.innerHTML = `
+                <div class="bg-white border-2 border-red-600 rounded-2xl max-w-sm w-full p-5 space-y-3.5 shadow-2xl animate-pulse">
+                    <div class="flex items-center justify-between">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-100 text-red-800 border border-red-300">
+                            🚨 ${incomingAlert.severity} OFFICIAL BROADCAST
+                        </span>
+                        <span class="text-[10px] font-mono text-slate-500 font-bold">${incomingAlert.id}</span>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900">${incomingAlert.title}</h3>
+                        <p class="text-xs text-slate-700 mt-1 font-medium">📍 Area: ${incomingAlert.area || 'Your Current Sector'}</p>
+                        <p class="text-xs text-red-800 font-bold mt-1 bg-red-50 p-2.5 rounded-lg border border-red-200">“${incomingAlert.instructions}”</p>
+                    </div>
+                    <button onclick="closeModal()" class="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow">
+                        Acknowledge Advisory
+                    </button>
+                </div>
+            `;
+            container.classList.remove("hidden");
+            container.classList.add("flex");
+            if (window.lucide) lucide.createIcons();
+        }
+
+        if (STATE.currentTab === "alerts") {
+            navigate("alerts");
         }
     } else if (event.type === "RESCUE_TEAM_ASSIGNED" && event.sosId) {
         const target = STATE.sosQueue.find(s => s.id === event.sosId);
@@ -2546,24 +2590,112 @@ function renderAlertsScreen() {
             <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
                 <div>
                     <h2 class="text-sm font-bold text-slate-900">Disaster Warnings & Bulletins</h2>
-                    <p class="text-[10px] text-slate-500">Ministry of Earth Sciences / IMD</p>
+                    <p class="text-[10px] text-slate-500">Ministry of Earth Sciences / IMD Gateway</p>
                 </div>
+                ${STATE.isAuthority ? `
+                    <span class="px-2 py-0.5 rounded text-[9px] bg-red-600 text-white font-bold animate-pulse">ADMIN BROADCASTER</span>
+                ` : `
+                    <span class="px-2 py-0.5 rounded text-[9px] bg-blue-100 text-blue-800 font-bold">CITIZEN RECEIVER</span>
+                `}
             </div>
 
+            <!-- ADMIN-ONLY: Emergency Broadcast Transmission Deck -->
+            ${STATE.isAuthority ? `
+                <div class="bg-gradient-to-br from-red-950 to-slate-900 text-white p-4 rounded-2xl border-2 border-red-500 shadow-lg space-y-3">
+                    <div class="flex items-center justify-between border-b border-red-800/60 pb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                            <h3 class="text-xs font-black uppercase tracking-wider text-red-200">Broadcast Official Warning</h3>
+                        </div>
+                        <span class="text-[9px] text-slate-400 font-mono">Live Multi-Device Bus</span>
+                    </div>
+
+                    <div class="space-y-2 text-xs">
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-300 uppercase block mb-1">Alert Severity Level</label>
+                            <select id="admin-alert-severity" class="w-full bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg p-2 focus:ring-1 focus:ring-red-500">
+                                <option value="CRITICAL">🔴 RED CRITICAL (Immediate Evacuation)</option>
+                                <option value="HIGH">🟠 AMBER HIGH (Severe Flash Flood / Thunderstorm)</option>
+                                <option value="ADVISORY">🟡 YELLOW ADVISORY (Precautionary Watch)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-300 uppercase block mb-1">Alert Headline / Title</label>
+                            <input id="admin-alert-title" type="text" value="RED CRITICAL: NOWCAST FLASH FLOOD & CLOUDBURST ALERT" class="w-full bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg p-2 focus:ring-1 focus:ring-red-500">
+                        </div>
+
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-300 uppercase block mb-1">Affected Region / Catchment Area</label>
+                            <input id="admin-alert-area" type="text" value="${STATE.currentLocationName}" class="w-full bg-slate-800 border border-slate-700 text-white text-xs rounded-lg p-2 focus:ring-1 focus:ring-red-500">
+                        </div>
+
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-300 uppercase block mb-1">Actionable Instructions for Citizens</label>
+                            <textarea id="admin-alert-instructions" rows="2" class="w-full bg-slate-800 border border-slate-700 text-white text-xs rounded-lg p-2 focus:ring-1 focus:ring-red-500" placeholder="e.g. Move immediately to high ridge shelters. Avoid valley roads.">Immediate mandatory evacuation along designated high-ridge routes. Extreme downpour core active.</textarea>
+                        </div>
+                    </div>
+
+                    <button onclick="sendAdminDisasterBroadcast()" class="w-full py-2.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-lg transition flex items-center justify-center space-x-2 border border-red-400">
+                        <i data-lucide="radio" class="w-4 h-4 animate-pulse"></i>
+                        <span>Transmit Live Alert to All Citizens</span>
+                    </button>
+                </div>
+            ` : `
+                <!-- CITIZEN REASSURANCE BANNER -->
+                <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl flex items-center space-x-2.5 text-xs text-blue-950">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-blue-700 shrink-0"></i>
+                    <p class="text-[11px] leading-tight">
+                        You are in <b>Citizen Receiver Mode</b>. Real-time official bulletins from IMD and NDRF Command Room will ring your phone automatically.
+                    </p>
+                </div>
+            `}
+
+            <!-- LIVE ALERTS FEED -->
             <div class="space-y-2 text-xs">
                 ${STATE.alerts.map(a => `
-                    <div class="p-3.5 bg-white border border-slate-200 rounded-xl space-y-1.5 shadow-xs">
+                    <div class="p-3.5 bg-white border border-slate-200 rounded-xl space-y-1.5 shadow-xs transition hover:shadow-sm">
                         <div class="flex items-center justify-between">
-                            <span class="px-2 py-0.2 rounded text-[9px] font-bold ${a.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}">${a.severity}</span>
+                            <span class="px-2 py-0.2 rounded text-[9px] font-bold ${a.severity === 'CRITICAL' ? 'bg-red-100 text-red-800 border border-red-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}">${a.severity}</span>
                             <span class="text-[10px] text-slate-400 font-mono">${a.timeIssued}</span>
                         </div>
                         <h3 class="text-xs font-bold text-slate-900">${a.title}</h3>
-                        <p class="text-[11px] text-slate-700 leading-relaxed">${a.instructions}</p>
+                        <p class="text-[10px] text-slate-500 font-medium">📍 Area: ${a.area || a.affectedArea || 'Catchment Slopes'}</p>
+                        <p class="text-[11px] text-slate-700 leading-relaxed bg-slate-50 p-2 rounded-lg border border-slate-200">${a.instructions || a.recommendedAction}</p>
                     </div>
                 `).join('')}
             </div>
         </div>
     `;
+}
+
+function sendAdminDisasterBroadcast() {
+    const severity = document.getElementById("admin-alert-severity").value;
+    const title = document.getElementById("admin-alert-title").value || "EMERGENCY DISASTER ADVISORY";
+    const area = document.getElementById("admin-alert-area").value || STATE.currentLocationName;
+    const instructions = document.getElementById("admin-alert-instructions").value || "Move to safe elevation immediately.";
+
+    const newAlert = {
+        id: `ALT-OFFICIAL-${Math.floor(1000 + Math.random() * 8999)}`,
+        title: title,
+        severity: severity,
+        area: area,
+        instructions: instructions,
+        timeIssued: "Just now",
+        isOfficial: true
+    };
+
+    STATE.alerts.unshift(newAlert);
+    saveSettingsToStorage();
+
+    // Broadcast live over cloud WebSocket mesh to all citizens' phones and computers
+    broadcastCrossDeviceEvent({
+        type: "NEW_DISASTER_BROADCAST",
+        alert: newAlert
+    });
+
+    showToast(`🚀 Official Warning Broadcasted: ${title}`, "critical");
+    navigate("alerts");
 }
 
 function renderFamilySafetyScreen() {

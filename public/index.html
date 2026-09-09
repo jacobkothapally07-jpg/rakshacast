@@ -56,19 +56,21 @@
         .mobile-shell {
             width: 100%;
             max-width: 440px;
-            min-height: 100vh;
+            height: 100vh;
+            height: 100dvh;
             margin: 0 auto;
             background-color: #f8fafc;
             display: flex;
             flex-direction: column;
             box-shadow: 0 20px 40px rgba(0,0,0,0.5);
             position: relative;
+            overflow: hidden;
         }
 
         @media (min-width: 640px) {
             .mobile-shell {
-                min-height: 890px;
-                max-height: 92vh;
+                height: 890px;
+                max-height: 94vh;
                 margin: 20px auto;
                 border-radius: 40px;
                 border: 10px solid #1e293b;
