@@ -1160,6 +1160,24 @@ async function fetchLiveOpenMeteo(lat, lng, locName, silent = false) {
                 updateLocalizedAlerts(STATE.telemetry, STATE.dailyForecast, STATE.currentLocationName);
                 updateAIPredictiveMatrix(STATE.telemetry, STATE.dailyForecast, STATE.currentLocationName, lat, lng);
 
+                // Automatic System Push Notification for Bad/Critical Weather
+                if (STATE.telemetry.riskLevel === "CRITICAL" || STATE.telemetry.riskLevel === "HIGH") {
+                    const sectorShort = STATE.currentLocationName.split(',')[0];
+                    const alertKey = `last_push_${STATE.telemetry.riskLevel}_${sectorShort}`;
+                    const lastPushed = typeof sessionStorage !== "undefined" ? sessionStorage.getItem(alertKey) : null;
+                    const now = Date.now();
+
+                    // 3-minute cooldown to avoid spamming while actively browsing
+                    if (!lastPushed || (now - Number(lastPushed)) > 180000) {
+                        if (typeof sessionStorage !== "undefined") sessionStorage.setItem(alertKey, String(now));
+                        dispatchSystemPushNotification(
+                            `🚨 ${STATE.telemetry.riskLevel} WEATHER ALERT: ${STATE.telemetry.heroTitle || 'Severe Storm Nowcast'}`,
+                            `${STATE.telemetry.heroDesc || 'Heavy precipitation & flood surge risk detected.'} (Sector: ${sectorShort})`,
+                            `rakshacast-weather-${STATE.telemetry.riskLevel.toLowerCase()}`
+                        );
+                    }
+                }
+
                 STATE.precautions = generatePrecautions(STATE.telemetry, STATE.dailyForecast, STATE.alerts);
                 cacheWeatherData();
                 if (!silent) showToast(`🌤️ Live Data Loaded for ${STATE.currentLocationName.split(',')[0]}`, "success");
