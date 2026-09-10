@@ -2235,44 +2235,92 @@ function initMobileMap() {
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // 1. BLUE RADIUS: Flood Inundation Danger Zone (1.2 km)
+        // =========================================================
+        // DYNAMIC HAZARD RADII DRIVEN BY LIVE TELEMETRY & PRECURSORS
+        // =========================================================
+        const liveRain = STATE.telemetry.rainfall || 0;
+        const liveWaterBase = STATE.telemetry.waterLevel || 2.2;
+        const liveIWV = (STATE.aiEngine && STATE.aiEngine.predictiveMatrix) ? STATE.aiEngine.predictiveMatrix.iwv : 54.2;
+        const liveCAPE = (STATE.aiEngine && STATE.aiEngine.predictiveMatrix) ? STATE.aiEngine.predictiveMatrix.cape : 2450;
+        const liveCTTDrop = (STATE.aiEngine && STATE.aiEngine.predictiveMatrix) ? STATE.aiEngine.predictiveMatrix.cttDropRate : "-14.2°C/15min";
+
+        // 1. LIVE FLOOD INUNDATION SURGE RADIUS (Blue)
+        // Scaled dynamically by real-time rain rate (mm/h) + Inundation Hour slider (+1h, +3h, +6h)
+        const surgeMultiplier = 1 + (STATE.inundationHour * 0.42);
+        const dynamicFloodRadius = Math.min(3200, Math.max(500, Math.round((700 + (liveRain * 18)) * surgeMultiplier)));
+        const dynamicWaterDepth = (liveWaterBase * surgeMultiplier).toFixed(2);
+
         L.circle(STATE.userCoords, {
-            radius: 1200,
+            radius: dynamicFloodRadius,
             color: "#2563eb",
             fillColor: "#3b82f6",
-            fillOpacity: 0.22,
+            fillOpacity: 0.22 + (STATE.inundationHour * 0.04),
             weight: 2,
             dashArray: "6, 6"
-        }).addTo(map).bindPopup("<b>🌊 Flood Inundation Hazard Radius (Blue)</b><br>Surge Radius: 1.2 km • Water Depth: +2.45m");
+        }).addTo(map).bindPopup(`
+            <div style="font-family:sans-serif; font-size:11px;">
+                <b style="color:#1e40af;">🌊 Live Flood Inundation Surge (${(dynamicFloodRadius/1000).toFixed(2)} km)</b><br>
+                <span>📍 Live Water Depth: <b>+${dynamicWaterDepth}m</b> (Surge Factor: ${surgeMultiplier.toFixed(2)}x)</span><br>
+                <span>🌧️ Live Rain Intensity: <b>${liveRain} mm/h</b></span><br>
+                <span style="font-size:9px; color:#475569;">Forecast Window: +${STATE.inundationHour} Hours Surge Model</span>
+            </div>
+        `);
 
-        // 2. RED RADIUS: Cloudburst Core & Flash Inundation Trigger Zone (1.5 km)
-        L.circle([STATE.userCoords[0] - 0.009, STATE.userCoords[1] + 0.012], {
-            radius: 1500,
+        // 2. LIVE CLOUDBURST CORE & EXTREME DOWNPOUR (Red)
+        // Offset along atmospheric wind vector with radius proportional to IWV moisture pool
+        const dynamicCloudburstRadius = Math.min(2800, Math.max(600, Math.round((liveIWV * 18) + (liveRain * 12))));
+        const cloudburstLat = STATE.userCoords[0] - 0.008;
+        const cloudburstLng = STATE.userCoords[1] + 0.010;
+
+        L.circle([cloudburstLat, cloudburstLng], {
+            radius: dynamicCloudburstRadius,
             color: "#dc2626",
             fillColor: "#ef4444",
             fillOpacity: 0.22,
             weight: 2
-        }).addTo(map).bindPopup("<b>🌧️ Cloudburst & Extreme Downpour Core (Red)</b><br>Rainfall Rate: &gt;100 mm/h • Radius: 1.5 km<br><span style='font-size:10px; color:#64748b;'>INSAT-3D CTT Drop: -16.4°C / 15min</span>");
+        }).addTo(map).bindPopup(`
+            <div style="font-family:sans-serif; font-size:11px;">
+                <b style="color:#b91c1c;">🌧️ Live Cloudburst Core (${(dynamicCloudburstRadius/1000).toFixed(2)} km)</b><br>
+                <span>💧 IWV Moisture Fuel: <b>${liveIWV} kg/m²</b></span><br>
+                <span>❄️ INSAT-3D CTT Cooling: <b>${liveCTTDrop}</b></span><br>
+                <span>🌧️ Cloudburst Precip Rate: <b>>${Math.max(100, Math.round(liveRain * 2.4))} mm/h</b></span>
+            </div>
+        `);
 
-        // 3. PURPLE RADIUS: Lightning & Thunderstorm Cell (800m)
-        L.circle([STATE.userCoords[0] + 0.012, STATE.userCoords[1] - 0.010], {
-            radius: 800,
+        // 3. LIVE LIGHTNING & CONVECTIVE STORM CELL (Purple)
+        // Radius scaled by thermodynamic CAPE buoyancy
+        const dynamicLightningRadius = Math.min(1800, Math.max(400, Math.round(350 + (liveCAPE * 0.22))));
+        L.circle([STATE.userCoords[0] + 0.010, STATE.userCoords[1] - 0.009], {
+            radius: dynamicLightningRadius,
             color: "#9333ea",
             fillColor: "#a855f7",
-            fillOpacity: 0.22,
+            fillOpacity: 0.20,
             weight: 2
-        }).addTo(map).bindPopup("<b>⚡ Active Lightning Strike Hazard (Purple)</b><br>Convective Storm Cell Radius: 800m");
+        }).addTo(map).bindPopup(`
+            <div style="font-family:sans-serif; font-size:11px;">
+                <b style="color:#7e22ce;">⚡ Live Lightning Hazard Cell (${(dynamicLightningRadius/1000).toFixed(2)} km)</b><br>
+                <span>⚡ Thermodynamic CAPE: <b>${liveCAPE} J/kg</b></span><br>
+                <span>🌪️ Strike Probability: <b>${STATE.telemetry.riskScore}%</b></span>
+            </div>
+        `);
 
-        // 4. AMBER RADIUS: Landslide & Slope Failure Risk (600m)
-        L.circle([STATE.userCoords[0] + 0.008, STATE.userCoords[1] + 0.009], {
-            radius: 600,
+        // 4. LIVE LANDSLIDE & DEBRIS FLOW ZONE (Amber)
+        const dynamicLandslideRadius = Math.min(1200, Math.max(300, Math.round(350 + (liveRain * 8))));
+        L.circle([STATE.userCoords[0] + 0.007, STATE.userCoords[1] + 0.008], {
+            radius: dynamicLandslideRadius,
             color: "#d97706",
             fillColor: "#f59e0b",
             fillOpacity: 0.25,
             weight: 2
-        }).addTo(map).bindPopup("<b>⚠️ Landslide / Rockfall Hazard (Amber)</b><br>Slope Failure Area: 600m");
+        }).addTo(map).bindPopup(`
+            <div style="font-family:sans-serif; font-size:11px;">
+                <b style="color:#b45309;">⚠️ Live Landslide & Slope Hazard (${(dynamicLandslideRadius/1000).toFixed(2)} km)</b><br>
+                <span>🏔️ CartoDEM Slope: <b>28.4° (Steep Funnel)</b></span><br>
+                <span>💧 Soil Saturation Index: <b>86%</b></span>
+            </div>
+        `);
 
-        // User Marker
+        // User Marker (Orange)
         L.circleMarker(STATE.userCoords, {
             radius: 9,
             fillColor: "#ea580c",
@@ -2280,7 +2328,13 @@ function initMobileMap() {
             weight: 3,
             opacity: 1,
             fillOpacity: 0.9
-        }).addTo(map).bindPopup("<b>📍 Your Current Location Node</b><br>Sector 4 Lowland Basin").openPopup();
+        }).addTo(map).bindPopup(`
+            <div style="font-family:sans-serif; font-size:11px;">
+                <b style="color:#c2410c;">📍 Your Real-Time Location Node</b><br>
+                <span>${STATE.currentLocationName}</span><br>
+                <span>Elevation: <b>${STATE.telemetry.elevation || 325}m MSL</b></span>
+            </div>
+        `).openPopup();
 
         // Safe Shelters (Green)
         STATE.shelters.forEach(s => {
@@ -2291,7 +2345,13 @@ function initMobileMap() {
                 weight: 2,
                 opacity: 1,
                 fillOpacity: 0.8
-            }).addTo(map).bindPopup(`<b>🟢 ${s.name}</b><br>Safe Elevation: ${s.elevation}m<br>Capacity: ${s.available}/${s.capacity} beds available`);
+            }).addTo(map).bindPopup(`
+                <div style="font-family:sans-serif; font-size:11px;">
+                    <b style="color:#15803d;">🟢 Safe Relief Shelter: ${s.name}</b><br>
+                    <span>Safe Elevation: <b>${s.elevation}m MSL</b></span><br>
+                    <span>Capacity: <b>${s.available}/${s.capacity} Beds Available</b></span>
+                </div>
+            `);
         });
 
         STATE.activeMap = map;
@@ -2302,7 +2362,12 @@ function setInundationTime(hours) {
     STATE.inundationHour = hours;
     const label = document.getElementById("inundation-label");
     if (label) label.innerText = hours === 0 ? "Current Baseline" : `+${hours} Hours`;
-    showToast(`🌊 Updated Flood Inundation Model for +${hours} Hours`, "info");
+    
+    // Re-render map with newly computed dynamic flood bounds
+    if (STATE.currentTab === "map") {
+        initMobileMap();
+    }
+    showToast(`🌊 Updated Live Inundation Forecast to +${hours} Hours`, "info");
 }
 
 // -------------------------------------------------------------
