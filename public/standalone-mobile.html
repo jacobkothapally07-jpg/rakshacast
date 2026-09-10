@@ -145,11 +145,12 @@
 
                 <!-- Role & Simulation Switcher -->
                 <div class="flex items-center space-x-1.5">
-                    <button onclick="toggleAuthorityMode()" id="role-toggle-btn" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-800 text-blue-100 hover:bg-blue-700 transition border border-blue-600">
-                        👤 Citizen View
+                    <button onclick="navigate('demo')" title="Launch SIH Demo Dashboard" class="px-2 py-1 rounded-lg text-[10px] font-extrabold bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700 transition shadow flex items-center space-x-1 border border-amber-400 active:scale-95">
+                        <span>🎬</span>
+                        <span>SIH Demo</span>
                     </button>
-                    <button onclick="runSimulationSequence()" title="1-Click Emergency Test" class="p-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition shadow">
-                        <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+                    <button onclick="toggleAuthorityMode()" id="role-toggle-btn" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-800 text-blue-100 hover:bg-blue-700 transition border border-blue-600">
+                        👤 Citizen View
                     </button>
                 </div>
             </div>
@@ -1699,6 +1700,7 @@ function navigate(tabId) {
     switch(tabId) {
         case "home": viewport.innerHTML = renderHomeScreen(); break;
         case "map": viewport.innerHTML = renderLiveMapScreen(); initMobileMap(); break;
+        case "demo": viewport.innerHTML = renderDemoScreen(); initDemoMap(); break;
         case "evacuate": viewport.innerHTML = renderEvacuateScreen(); initEvacuateRouteMap(); break;
         case "alerts": viewport.innerHTML = renderAlertsScreen(); break;
         case "profile": viewport.innerHTML = renderProfileScreen(); break;
@@ -1724,6 +1726,7 @@ function updateBottomNav() {
     const tabs = [
         { id: "home", label: "Nowcast", icon: "cloud-lightning" },
         { id: "map", label: "Live Map", icon: "map" },
+        { id: "demo", label: "🎬 Demo", icon: "play-circle" },
         { id: "evacuate", label: "Evacuate", icon: "navigation" },
         { id: "alerts", label: "Alerts", icon: "bell" },
         { id: "profile", label: STATE.isAuthority ? "Officer" : "Profile", icon: STATE.isAuthority ? "shield" : "user" }
@@ -1731,12 +1734,13 @@ function updateBottomNav() {
 
     nav.innerHTML = tabs.map(t => {
         const isActive = STATE.currentTab === t.id;
+        const isDemo = t.id === "demo";
         return `
-            <button onclick="navigate('${t.id}')" class="flex flex-col items-center justify-center py-1 px-1 flex-1 h-full select-none ${isActive ? 'text-blue-900 font-extrabold' : 'text-slate-500 font-medium hover:text-slate-700'} transition active:scale-90">
-                <div class="p-1 rounded-xl ${isActive ? 'bg-blue-50 text-blue-900' : 'text-slate-500'} flex items-center justify-center transition">
+            <button onclick="navigate('${t.id}')" class="flex flex-col items-center justify-center py-1 px-1 flex-1 h-full select-none ${isActive ? (isDemo ? 'text-amber-600 font-black' : 'text-blue-900 font-extrabold') : 'text-slate-500 font-medium hover:text-slate-700'} transition active:scale-90">
+                <div class="p-1 rounded-xl ${isActive ? (isDemo ? 'bg-amber-100 text-amber-700 font-bold' : 'bg-blue-50 text-blue-900') : (isDemo ? 'bg-amber-50/80 text-amber-700' : 'text-slate-500')} flex items-center justify-center transition">
                     <i data-lucide="${t.icon}" class="w-4 h-4 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}"></i>
                 </div>
-                <span class="text-[9px] leading-none mt-0.5 tracking-tight">${t.label}</span>
+                <span class="text-[9px] leading-none mt-0.5 tracking-tight ${isDemo ? 'font-bold text-amber-700' : ''}">${t.label}</span>
             </button>
         `;
     }).join("");
@@ -3552,6 +3556,1023 @@ function showToast(message, type = "info") {
     container.appendChild(toast);
     setTimeout(() => { toast.remove(); }, 4000);
 }
+
+// =============================================================================
+// RAKSHACAST DEMO MODE — SIH 2026 LIVE DEMONSTRATION ENVIRONMENT
+// =============================================================================
+
+let DEMO_STATE = {
+    isRunning: false,
+    isPaused: false,
+    currentStep: 0, // 0 = ready, 1..7 = active steps
+    stepTimer: null,
+    selectedScenario: "flood",
+    locationName: "Haridwar-Rishikesh Valley, Uttarakhand",
+    coords: [29.9457, 78.1642],
+    radiusKm: 5,
+    targetUsers: 1248,
+    presentationMode: false,
+    sliders: {
+        rainfall: 120,
+        duration: 2.0,
+        waterLevel: 3.4,
+        floodProb: 92,
+        saturation: 88
+    },
+    scenarios: {
+        flood: {
+            title: "Flash Flood Surge",
+            badge: "🌊 Flash Flood",
+            rainfall: 120,
+            duration: 2.0,
+            waterLevel: 3.4,
+            floodProb: 92,
+            saturation: 88,
+            riskScore: 94,
+            riskLevel: "CRITICAL EMERGENCY",
+            leadTime: "1.5 hrs",
+            desc: "Rapid catchment overflow triggered by uphill cloudburst with steep runoff into river valley."
+        },
+        thunderstorm: {
+            title: "Severe Thunderstorm & Gale",
+            badge: "⛈️ Severe Storm",
+            rainfall: 85,
+            duration: 1.5,
+            waterLevel: 2.1,
+            floodProb: 78,
+            saturation: 72,
+            riskScore: 84,
+            riskLevel: "HIGH SEVERE",
+            leadTime: "2.0 hrs",
+            desc: "Mesoscale convective system with severe lightning strikes, 75 km/h squalls, and intense hail risk."
+        },
+        cloudburst: {
+            title: "Extreme Rainfall / Cloudburst",
+            badge: "🌧️ Cloudburst Core",
+            rainfall: 145,
+            duration: 3.0,
+            waterLevel: 4.1,
+            floodProb: 96,
+            saturation: 94,
+            riskScore: 98,
+            riskLevel: "EXTREME CATASTROPHIC",
+            leadTime: "0.8 hrs",
+            desc: "Catastrophic precipitation core exceeding 140 mm/hr detected via INSAT-3D TIR1 cooling rate."
+        },
+        wind: {
+            title: "High Wind & Tropical Cyclone",
+            badge: "💨 Gale Storm",
+            rainfall: 60,
+            duration: 5.0,
+            waterLevel: 1.8,
+            floodProb: 65,
+            saturation: 60,
+            riskScore: 76,
+            riskLevel: "HIGH ALERT",
+            leadTime: "4.0 hrs",
+            desc: "Damaging cyclonic winds (>90 km/h) with structural damage risk and coastal/inland flash inundation."
+        },
+        heat: {
+            title: "Extreme Heat Wave Surge",
+            badge: "🌡️ Heat Wave",
+            rainfall: 0,
+            duration: 8.0,
+            waterLevel: 0.2,
+            floodProb: 4,
+            saturation: 15,
+            riskScore: 68,
+            riskLevel: "CAUTION ADVISORY",
+            leadTime: "6.0 hrs",
+            desc: "Extreme 44.5°C surface heat spike with severe wet-bulb temperature anomaly and dehydration risks."
+        },
+        custom: {
+            title: "Custom Scenario",
+            badge: "⚠️ Custom Run",
+            rainfall: 100,
+            duration: 2.5,
+            waterLevel: 2.8,
+            floodProb: 85,
+            saturation: 80,
+            riskScore: 88,
+            riskLevel: "HIGH RISK",
+            leadTime: "2.5 hrs",
+            desc: "User-configured disaster simulation parameters across rainfall, duration, water depth, and soil."
+        }
+    },
+    locationPresets: [
+        { name: "Haridwar, Uttarakhand", coords: [29.9457, 78.1642], desc: "Ganges River Basin", icon: "mountain" },
+        { name: "Shimla, Himachal Pradesh", coords: [31.1048, 77.1734], desc: "Himalayan Ridge Catchment", icon: "trees" },
+        { name: "Guwahati, Assam", coords: [26.1445, 91.7362], desc: "Brahmaputra Flood Corridor", icon: "waves" },
+        { name: "Wayanad, Kerala", coords: [11.6854, 76.1320], desc: "Western Ghats Slope Zone", icon: "shield-alert" },
+        { name: "Delhi NCR (Yamuna Basin)", coords: [28.6139, 77.2090], desc: "Lowland Floodplain", icon: "landmark" },
+        { name: "Mumbai (Mithi River)", coords: [19.0760, 72.8777], desc: "Coastal Inundation Zone", icon: "building-2" }
+    ],
+    deliveryProgress: {
+        inApp: { current: 0, total: 1248, status: "Standby", icon: "bell", percent: 0, channelName: "In-App Emergency Popup" },
+        push: { current: 0, total: 1248, status: "Standby", icon: "smartphone", percent: 0, channelName: "Mobile Push (FCM)" },
+        sms: { current: 0, total: 1248, status: "Standby", icon: "message-square", percent: 0, channelName: "Simulated SMS Alert" },
+        ivr: { current: 0, total: 1248, status: "Standby", icon: "phone-call", percent: 0, channelName: "Emergency IVR Voice Call" }
+    },
+    deviceAlert: null,
+    eventLogs: [
+        { time: new Date().toLocaleTimeString("en-IN"), level: "SYSTEM", source: "INIT", text: "Demo environment online. Safe isolated mode active." }
+    ],
+    history: [
+        { time: "Recent Run", scenario: "Flash Flood", location: "Haridwar, UK", risk: "CRITICAL 94/100", recipients: "1,248 (100%)", status: "SUCCESS" }
+    ],
+    activeMap: null,
+    mapLayers: []
+};
+
+// -------------------------------------------------------------
+// RENDER DEMO SCREEN
+// -------------------------------------------------------------
+function renderDemoScreen() {
+    const s = DEMO_STATE;
+    const currentScenario = s.scenarios[s.selectedScenario] || s.scenarios.flood;
+
+    const steps = [
+        { num: 1, title: "Weather Event Ingested", desc: "Telemetry captured from INSAT-3D WV & IMD Doppler Radar", icon: "satellite" },
+        { num: 2, title: "AI Risk Calculation", desc: "Spatiotemporal Transformer computes multi-task probabilities", icon: "cpu" },
+        { num: 3, title: "Emergency Escalation", desc: "System triggers CRITICAL threshold alert state", icon: "alert-triangle" },
+        { num: 4, title: "Precaution & Safe Route Generated", desc: "Dynamic high-ground evacuation path mapped", icon: "navigation" },
+        { num: 5, title: "Disaster Bulletin Created", desc: "Official multilingual alert payload compiled", icon: "file-text" },
+        { num: 6, title: "Multi-Channel Broadcast", desc: "Push, SMS, In-App & Voice IVR pipelines engaged", icon: "radio" },
+        { num: 7, title: "1,248 Citizens Notified", desc: "Target users in 5km danger zone successfully alerted", icon: "check-circle" }
+    ];
+
+    return `
+        <div class="space-y-4 ${s.presentationMode ? 'scale-[1.02] transform transition-transform' : ''}">
+            
+            <!-- 1. TOP HEADER & ENVIRONMENT BADGE -->
+            <div class="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 text-white p-4 rounded-2xl shadow-md border border-slate-700/60 relative overflow-hidden">
+                <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-blue-500/10 rounded-full blur-xl pointer-events-none"></div>
+                
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl animate-pulse">🎬</span>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h1 class="text-sm font-black uppercase tracking-wider text-white">RAKSHACAST DEMO MODE</h1>
+                                <span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center space-x-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                    <span>SAFE ENVIRONMENT</span>
+                                </span>
+                            </div>
+                            <p class="text-[10px] text-blue-200 font-medium">“AI-Driven Hyper-Local Early Warning & Disaster Resilience System”</p>
+                        </div>
+                    </div>
+                    
+                    <button onclick="toggleDemoPresentationMode()" class="px-2.5 py-1.5 ${s.presentationMode ? 'bg-amber-400 text-slate-950 font-black' : 'bg-white/10 hover:bg-white/20 text-white font-bold'} rounded-xl text-[10px] border border-white/20 flex items-center space-x-1 transition active:scale-95 shrink-0 shadow-xs">
+                        <i data-lucide="${s.presentationMode ? 'minimize-2' : 'maximize-2'}" class="w-3.5 h-3.5"></i>
+                        <span>${s.presentationMode ? 'Standard View' : '🎤 Presenter Mode'}</span>
+                    </button>
+                </div>
+
+                <div class="mt-2.5 pt-2 border-t border-white/10 flex flex-wrap items-center justify-between text-[9px] text-slate-300 gap-1">
+                    <span class="flex items-center space-x-1">
+                        <i data-lucide="shield-check" class="w-3 h-3 text-emerald-400"></i>
+                        <span><b>Sandbox Isolation:</b> Safe simulated demonstration. No external charges or live sirens triggered.</span>
+                    </span>
+                    <span class="font-mono text-blue-300">SIH 2026 Live Demo Portal</span>
+                </div>
+            </div>
+
+            <!-- 2. SCENARIO SELECTOR (6 CARDS) -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i>
+                        <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider">1. Select Disaster Scenario</h3>
+                    </div>
+                    <span class="text-[9px] px-2 py-0.5 rounded font-bold bg-slate-100 text-slate-700">
+                        Active: <b>${currentScenario.badge}</b>
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    ${Object.keys(s.scenarios).map(key => {
+                        const sc = s.scenarios[key];
+                        const isSelected = s.selectedScenario === key;
+                        return `
+                            <button onclick="selectDemoScenario('${key}')" class="p-2.5 rounded-xl border text-left transition active:scale-95 ${isSelected ? 'bg-blue-50/90 border-blue-600 shadow-sm ring-1 ring-blue-600' : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80'}">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-black ${isSelected ? 'text-blue-950' : 'text-slate-800'}">${sc.badge}</span>
+                                    ${isSelected ? '<span class="w-2 h-2 rounded-full bg-blue-600"></span>' : ''}
+                                </div>
+                                <div class="text-[10px] text-slate-500 font-mono mt-1">${sc.rainfall} mm/h • ${sc.duration}h</div>
+                                <div class="text-[9px] font-bold mt-0.5 ${sc.riskScore > 90 ? 'text-red-600' : (sc.riskScore > 75 ? 'text-amber-600' : 'text-blue-700')}">${sc.riskLevel.split(' ')[0]} (${sc.riskScore}/100)</div>
+                            </button>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+
+            <!-- 3. LOCATION SELECTOR & PRESETS & RADIUS -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-orange-600"></i>
+                        <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider">2. Location & Impact Radius</h3>
+                    </div>
+                    <span class="text-[9px] text-slate-500 font-mono">📍 Lat: ${s.coords[0].toFixed(3)}, Lng: ${s.coords[1].toFixed(3)}</span>
+                </div>
+
+                <!-- Search Input & Quick GPS -->
+                <div class="flex items-center space-x-1.5">
+                    <input id="demo-location-input" type="text" value="${s.locationName}" placeholder="Search City, District or River Basin..." class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-1 focus:ring-blue-900" onkeydown="if(event.key==='Enter') searchDemoLocation(this.value)">
+                    <button onclick="searchDemoLocation(document.getElementById('demo-location-input').value)" class="px-2.5 py-1.5 bg-blue-900 text-white font-bold rounded-lg text-xs shrink-0 hover:bg-blue-950 transition">
+                        Set
+                    </button>
+                    <button onclick="detectDemoGPS()" title="Use Current GPS" class="p-1.5 bg-slate-100 border border-slate-300 text-blue-900 hover:bg-slate-200 rounded-lg shrink-0">
+                        <i data-lucide="crosshair" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Quick Location Presets -->
+                <div>
+                    <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Quick SIH Demo Target Presets:</span>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                        ${s.locationPresets.map((loc, idx) => {
+                            const isSelected = s.locationName === loc.name;
+                            return `
+                                <button onclick="selectDemoLocationPreset('${loc.name}', ${loc.coords[0]}, ${loc.coords[1]})" class="p-1.5 rounded-lg border text-left text-[10px] transition ${isSelected ? 'bg-orange-50 border-orange-500 font-bold text-orange-950' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}">
+                                    <div class="truncate font-semibold">${loc.name.split(',')[0]}</div>
+                                    <div class="text-[8px] text-slate-400 truncate">${loc.desc}</div>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- Danger Radius & Target Population -->
+                <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                    <div>
+                        <span class="text-[9px] font-bold text-slate-600 uppercase block mb-1">Impact Radius:</span>
+                        <div class="grid grid-cols-4 gap-1">
+                            ${[1, 2, 5, 10].map(r => `
+                                <button onclick="updateDemoRadius(${r})" class="py-1 rounded text-[10px] font-bold text-center transition ${s.radiusKm === r ? 'bg-blue-900 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">${r}km</button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-[9px] font-bold text-slate-600 uppercase block mb-1">Target Citizens:</span>
+                        <div class="grid grid-cols-4 gap-1">
+                            ${[100, 500, 1248, 5000].map(u => `
+                                <button onclick="updateDemoTargetUsers(${u})" class="py-1 rounded text-[9px] font-bold text-center transition ${s.targetUsers === u ? 'bg-blue-900 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">${u > 999 ? (u/1000).toFixed(1)+'k' : u}</button>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. SIMULATION SLIDERS DECK -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5">
+                        <i data-lucide="sliders" class="w-4 h-4 text-blue-900"></i>
+                        <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider">3. Live Simulation Parameters</h3>
+                    </div>
+                    <span class="text-[9px] text-slate-500">Fine-tune simulation variables</span>
+                </div>
+
+                <div class="space-y-2.5">
+                    <!-- Rain Intensity -->
+                    <div class="bg-slate-50 p-2 rounded-xl border border-slate-200">
+                        <div class="flex items-center justify-between text-xs mb-1">
+                            <span class="font-bold text-slate-700 flex items-center space-x-1">
+                                <span>🌧️ Rainfall Intensity</span>
+                            </span>
+                            <span class="font-mono font-black text-blue-900" id="slider-rain-val">${s.sliders.rainfall} mm/h</span>
+                        </div>
+                        <input type="range" min="0" max="200" step="5" value="${s.sliders.rainfall}" class="w-full accent-blue-900 cursor-pointer h-1.5 bg-slate-200 rounded-lg" oninput="updateDemoSlider('rainfall', this.value)">
+                        <div class="flex justify-between text-[8px] text-slate-400 font-mono mt-0.5">
+                            <span>0 mm/h (Clear)</span>
+                            <span>65 mm/h (Heavy)</span>
+                            <span>100+ mm/h (Cloudburst)</span>
+                        </div>
+                    </div>
+
+                    <!-- Water Surge & Duration -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-slate-50 p-2 rounded-xl border border-slate-200">
+                            <div class="flex items-center justify-between text-[11px] mb-1">
+                                <span class="font-bold text-slate-700">💧 Water Surge</span>
+                                <span class="font-mono font-black text-blue-900" id="slider-water-val">+${s.sliders.waterLevel}m</span>
+                            </div>
+                            <input type="range" min="0.2" max="5.0" step="0.1" value="${s.sliders.waterLevel}" class="w-full accent-blue-900 cursor-pointer h-1.5 bg-slate-200 rounded-lg" oninput="updateDemoSlider('waterLevel', this.value)">
+                            <div class="text-[8px] text-slate-400 font-mono mt-0.5">CWC River Gauge Depth</div>
+                        </div>
+
+                        <div class="bg-slate-50 p-2 rounded-xl border border-slate-200">
+                            <div class="flex items-center justify-between text-[11px] mb-1">
+                                <span class="font-bold text-slate-700">⏱️ Storm Duration</span>
+                                <span class="font-mono font-black text-blue-900" id="slider-duration-val">${s.sliders.duration} hrs</span>
+                            </div>
+                            <input type="range" min="0.5" max="12.0" step="0.5" value="${s.sliders.duration}" class="w-full accent-blue-900 cursor-pointer h-1.5 bg-slate-200 rounded-lg" oninput="updateDemoSlider('duration', this.value)">
+                            <div class="text-[8px] text-slate-400 font-mono mt-0.5">Continuous downpour window</div>
+                        </div>
+                    </div>
+
+                    <!-- Flood Prob & Ground Saturation -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-slate-50 p-2 rounded-xl border border-slate-200">
+                            <div class="flex items-center justify-between text-[11px] mb-1">
+                                <span class="font-bold text-slate-700">🌊 Flood Probability</span>
+                                <span class="font-mono font-black text-red-600" id="slider-flood-val">${s.sliders.floodProb}%</span>
+                            </div>
+                            <input type="range" min="0" max="100" step="1" value="${s.sliders.floodProb}" class="w-full accent-red-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg" oninput="updateDemoSlider('floodProb', this.value)">
+                        </div>
+
+                        <div class="bg-slate-50 p-2 rounded-xl border border-slate-200">
+                            <div class="flex items-center justify-between text-[11px] mb-1">
+                                <span class="font-bold text-slate-700">🌱 Soil Saturation</span>
+                                <span class="font-mono font-black text-amber-700" id="slider-sat-val">${s.sliders.saturation}%</span>
+                            </div>
+                            <input type="range" min="0" max="100" step="1" value="${s.sliders.saturation}" class="w-full accent-amber-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg" oninput="updateDemoSlider('saturation', this.value)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. PRIMARY 1-CLICK EMERGENCY ACTION & STEP PIPELINE -->
+            <div class="bg-gradient-to-br from-red-900 via-red-950 to-slate-950 text-white rounded-2xl p-4 shadow-lg border border-red-700/80 space-y-3.5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/40">
+                            Automated 7-Step Pipeline
+                        </span>
+                        <h2 class="text-sm font-black text-white mt-1">SIH Live End-to-End Demonstration</h2>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[9px] text-red-200 block uppercase font-mono">Status:</span>
+                        <span class="text-xs font-black ${s.isRunning ? 'text-amber-400 animate-pulse' : (s.currentStep === 7 ? 'text-emerald-400' : 'text-slate-300')}">
+                            ${s.isRunning ? 'SIMULATION IN PROGRESS' : (s.currentStep === 7 ? '✅ COMPLETED' : 'READY TO TRIGGER')}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Big 1-Click Action Button & Control Bar -->
+                <div class="space-y-2">
+                    <button onclick="startEmergencyDemo()" class="w-full py-3.5 ${s.isRunning ? 'bg-amber-500 hover:bg-amber-600' : 'bg-red-600 hover:bg-red-700'} text-white font-black rounded-xl text-xs uppercase tracking-wider shadow-lg flex items-center justify-center space-x-2 transition active:scale-95">
+                        <i data-lucide="${s.isRunning ? 'refresh-cw' : 'alert-octagon'}" class="w-5 h-5 ${s.isRunning ? 'animate-spin' : ''}"></i>
+                        <span>${s.isRunning ? 'Restart Emergency Demo' : '🚨 START EMERGENCY DEMO (1-CLICK)'}</span>
+                    </button>
+
+                    <div class="grid grid-cols-3 gap-2 pt-1">
+                        <button onclick="stepEmergencyDemo()" class="py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[10px] font-bold border border-white/20 flex items-center justify-center space-x-1 transition active:scale-95">
+                            <i data-lucide="step-forward" class="w-3.5 h-3.5"></i>
+                            <span>Step Forward</span>
+                        </button>
+                        <button onclick="pauseDemoSimulation()" class="py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[10px] font-bold border border-white/20 flex items-center justify-center space-x-1 transition active:scale-95">
+                            <i data-lucide="${s.isPaused ? 'play' : 'pause'}" class="w-3.5 h-3.5"></i>
+                            <span>${s.isPaused ? 'Resume' : 'Pause'}</span>
+                        </button>
+                        <button onclick="resetDemoSimulation()" class="py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-[10px] font-bold border border-slate-700 flex items-center justify-center space-x-1 transition active:scale-95">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                            <span>Reset</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Visual 7-Step Sequence Tracker -->
+                <div class="space-y-1.5 pt-2 border-t border-white/10">
+                    <span class="text-[9px] font-bold text-red-200 uppercase tracking-wider block">Live Pipeline Execution Stages:</span>
+                    <div class="space-y-1">
+                        ${steps.map(st => {
+                            const isDone = s.currentStep >= st.num;
+                            const isCurrent = s.currentStep === st.num;
+                            return `
+                                <div class="p-2 rounded-xl border transition flex items-center justify-between ${isCurrent ? 'bg-red-500/30 border-amber-400 text-white shadow-sm ring-1 ring-amber-400/50' : (isDone ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-100' : 'bg-slate-900/40 border-white/5 text-slate-400')}">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 ${isCurrent ? 'bg-amber-400 text-slate-950 animate-bounce' : (isDone ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400')}">
+                                            ${isDone ? '✓' : st.num}
+                                        </div>
+                                        <div>
+                                            <div class="text-[11px] font-bold ${isCurrent ? 'text-amber-300' : (isDone ? 'text-white' : 'text-slate-400')}">${st.title}</div>
+                                            <div class="text-[9px] ${isCurrent ? 'text-slate-200' : 'text-slate-400'}">${st.desc}</div>
+                                        </div>
+                                    </div>
+                                    <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${isCurrent ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40 animate-pulse' : (isDone ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-500')}">
+                                        ${isCurrent ? 'PROCESSING...' : (isDone ? 'COMPLETED' : 'QUEUED')}
+                                    </span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. MULTI-CHANNEL BROADCAST DELIVERY STATION -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5">
+                        <i data-lucide="send" class="w-4 h-4 text-blue-900"></i>
+                        <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider">4. Automated Alert Delivery</h3>
+                    </div>
+                    <span class="text-[9px] font-bold font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-900 border border-blue-200">
+                        Target: ${s.targetUsers} Citizens
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    ${Object.keys(s.deliveryProgress).map(chKey => {
+                        const ch = s.deliveryProgress[chKey];
+                        const isFinished = ch.percent >= 100;
+                        return `
+                            <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                                        <i data-lucide="${ch.icon}" class="w-3.5 h-3.5 text-blue-900"></i>
+                                        <span>${ch.channelName}</span>
+                                    </span>
+                                    <span class="text-[10px] font-mono font-black ${isFinished ? 'text-emerald-600' : (ch.percent > 0 ? 'text-amber-600' : 'text-slate-400')}">
+                                        ${ch.current} / ${ch.total} (${ch.percent}%)
+                                    </span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                    <div class="h-2 rounded-full transition-all duration-300 ${isFinished ? 'bg-emerald-500' : 'bg-blue-600'}" style="width: ${ch.percent}%"></div>
+                                </div>
+                                <div class="flex items-center justify-between text-[9px] text-slate-500">
+                                    <span>Status: <b class="${isFinished ? 'text-emerald-700' : ''}">${ch.status}</b></span>
+                                    <span>0 Failures</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+
+            <!-- 7. SIMULATED USER DEVICE PANEL (MOCK SMARTPHONE CARD) -->
+            <div class="bg-gradient-to-b from-slate-900 to-slate-950 text-white rounded-2xl p-4 shadow-md border border-slate-700 space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b border-white/10">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="smartphone" class="w-4 h-4 text-blue-400"></i>
+                        <div>
+                            <h3 class="text-xs font-black uppercase tracking-wider text-white">📱 Citizen Device Simulation</h3>
+                            <p class="text-[9px] text-slate-400">Real-time incoming alert view on citizen handset</p>
+                        </div>
+                    </div>
+                    <span class="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono">
+                        Aarav's Phone • Sector 4
+                    </span>
+                </div>
+
+                <!-- Smartphone Screen Mockup Frame -->
+                <div class="bg-slate-900 rounded-xl p-3 border border-slate-700 shadow-inner space-y-2.5">
+                    <div class="flex items-center justify-between text-[9px] text-slate-400 font-mono px-1">
+                        <span>12:15 PM</span>
+                        <span>📶 5G • 🔋 88%</span>
+                    </div>
+
+                    ${s.deviceAlert ? `
+                        <!-- Received Alert Card -->
+                        <div class="bg-red-600/90 text-white p-3 rounded-xl shadow-lg border border-red-400 animate-pulse space-y-2">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-1.5">
+                                    <i data-lucide="alert-octagon" class="w-4 h-4 text-white"></i>
+                                    <span class="text-xs font-black uppercase tracking-wider">🚨 ${s.deviceAlert.title}</span>
+                                </div>
+                                <span class="text-[9px] font-mono bg-white/20 px-1.5 py-0.2 rounded">${s.deviceAlert.time}</span>
+                            </div>
+                            
+                            <p class="text-[11px] leading-relaxed font-medium">${s.deviceAlert.body}</p>
+
+                            <div class="p-2 bg-black/30 rounded-lg text-[10px] space-y-0.5">
+                                <div><b>📍 Hazard Zone:</b> ${s.locationName}</div>
+                                <div><b>🛡️ Action Required:</b> Evacuate immediately via High-Ground Shelter Corridor</div>
+                            </div>
+
+                            <div class="flex space-x-1.5 pt-1">
+                                <button onclick="navigate('evacuate')" class="flex-1 py-1.5 bg-white text-red-900 font-black rounded-lg text-[10px] shadow hover:bg-slate-100 transition active:scale-95">
+                                    VIEW SAFE EVACUATION ROUTE →
+                                </button>
+                                <button onclick="dismissDemoDeviceNotification()" class="px-2.5 py-1.5 bg-red-950/60 text-white rounded-lg text-[10px] font-bold">
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    ` : `
+                        <!-- Standby Phone Screen -->
+                        <div class="p-6 text-center text-slate-500 space-y-1.5 border border-dashed border-slate-700 rounded-xl">
+                            <i data-lucide="shield" class="w-6 h-6 mx-auto text-slate-600"></i>
+                            <p class="text-xs font-bold text-slate-400">Device in Standby Monitoring Mode</p>
+                            <p class="text-[10px] text-slate-500">Trigger the emergency demo above to push an instant alert to this citizen handset.</p>
+                        </div>
+                    `}
+                </div>
+            </div>
+
+            <!-- 8. INTERACTIVE DEMO MAP (DYNAMIC DANGER CIRCLES) -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider">5. Geospatial Hazard Radius Map</h3>
+                        <p class="text-[9px] text-slate-500">Live concentric warning radii (Advisory, Warning & Emergency)</p>
+                    </div>
+                    <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-800 border border-red-200">
+                        ${s.radiusKm} km Danger Zone
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-1.5 text-[9px] p-2 bg-slate-50 rounded-xl border border-slate-200">
+                    <div class="flex items-center space-x-1">
+                        <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 border border-yellow-600 shrink-0"></span>
+                        <span><b>Advisory:</b> 1km (${(s.radiusKm*0.2).toFixed(1)}km)</span>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <span class="w-2.5 h-2.5 rounded-full bg-orange-500 border border-orange-700 shrink-0"></span>
+                        <span><b>Warning:</b> 3km (${(s.radiusKm*0.6).toFixed(1)}km)</span>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-600 border border-red-800 shrink-0"></span>
+                        <span><b>Emergency:</b> ${s.radiusKm}km Core</span>
+                    </div>
+                </div>
+
+                <!-- Leaflet Map Container -->
+                <div class="w-full h-80 rounded-xl overflow-hidden border border-slate-300 shadow relative" id="demo-map-div"></div>
+            </div>
+
+            <!-- 9. LIVE RISK DASHBOARD CARDS & TELEMETRY DECK -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider">6. Live Simulation Telemetry Deck</h3>
+                    <span class="text-[9px] font-mono text-slate-500">Clock: ${new Date().toLocaleTimeString("en-IN")} IST</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div class="p-2.5 bg-blue-50/80 rounded-xl border border-blue-200">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase block">🌧️ Rain Rate</span>
+                        <div class="text-sm font-black font-mono text-blue-900 mt-0.5">${s.sliders.rainfall} mm/h</div>
+                    </div>
+                    <div class="p-2.5 bg-red-50/80 rounded-xl border border-red-200">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase block">🌊 Flood Prob</span>
+                        <div class="text-sm font-black font-mono text-red-600 mt-0.5">${s.sliders.floodProb}%</div>
+                    </div>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase block">💧 Surge Depth</span>
+                        <div class="text-sm font-black font-mono text-blue-950 mt-0.5">+${s.sliders.waterLevel}m</div>
+                    </div>
+                    <div class="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase block">🌱 Saturation</span>
+                        <div class="text-sm font-black font-mono text-amber-800 mt-0.5">${s.sliders.saturation}%</div>
+                    </div>
+                    <div class="p-2.5 bg-red-100/90 rounded-xl border border-red-300">
+                        <span class="text-[9px] font-bold text-red-800 uppercase block">⚠️ Threat Index</span>
+                        <div class="text-sm font-black font-mono text-red-700 mt-0.5">${currentScenario.riskScore}/100</div>
+                    </div>
+                    <div class="p-2.5 bg-indigo-50/80 rounded-xl border border-indigo-200">
+                        <span class="text-[9px] font-bold text-indigo-800 uppercase block">⏱️ Lead Time</span>
+                        <div class="text-sm font-black font-mono text-indigo-950 mt-0.5">${currentScenario.leadTime}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 10. AI / RISK ENGINE ANALYSIS (SPATIOTEMPORAL TRANSFORMER & XAI) -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+                <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-900 flex items-center justify-center font-bold text-xs">🧠</div>
+                        <div>
+                            <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider">7. Explainable AI (XAI) Attribution</h3>
+                            <p class="text-[9px] text-slate-500">Spatiotemporal Deep Learning Feature Weights</p>
+                        </div>
+                    </div>
+                    <span class="text-[9px] px-2 py-0.5 rounded font-mono font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                        97.4% Confidence • 38ms Latency
+                    </span>
+                </div>
+
+                <div class="space-y-2">
+                    <div>
+                        <div class="flex justify-between text-[11px] mb-0.5">
+                            <span class="font-bold text-slate-700">💧 INSAT-3D Integrated Water Vapor (IWV) Accumulation</span>
+                            <span class="font-mono font-bold text-blue-900">38% Weight</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5">
+                            <div class="bg-blue-600 h-1.5 rounded-full" style="width: 38%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-[11px] mb-0.5">
+                            <span class="font-bold text-slate-700">⚡ Atmospheric Instability (CAPE 2450 J/kg & Eroded CIN)</span>
+                            <span class="font-mono font-bold text-amber-700">28% Weight</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5">
+                            <div class="bg-amber-500 h-1.5 rounded-full" style="width: 28%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-[11px] mb-0.5">
+                            <span class="font-bold text-slate-700">🏔️ ISRO CartoDEM 30m Slope & Catchment Runoff Gradient</span>
+                            <span class="font-mono font-bold text-emerald-800">22% Weight</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5">
+                            <div class="bg-emerald-600 h-1.5 rounded-full" style="width: 22%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-[11px] mb-0.5">
+                            <span class="font-bold text-slate-700">🌱 Antecedent Soil Saturation & Surface Inundation Factor</span>
+                            <span class="font-mono font-bold text-purple-800">12% Weight</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5">
+                            <div class="bg-purple-600 h-1.5 rounded-full" style="width: 12%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 11. LIVE EVENT TIMELINE LOG -->
+            <div class="bg-slate-950 text-emerald-400 p-3.5 rounded-2xl shadow-inner font-mono text-[10px] space-y-2 border border-slate-800">
+                <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                    <span class="flex items-center space-x-1 text-slate-300 font-bold">
+                        <i data-lucide="terminal" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>8. Live Event Timeline Log (Real-Time Terminal)</span>
+                    </span>
+                    <button onclick="clearDemoLogs()" class="text-[9px] text-slate-400 hover:text-white underline">Clear</button>
+                </div>
+
+                <div class="space-y-1 max-h-48 overflow-y-auto custom-scrollbar" id="demo-event-logs">
+                    ${s.eventLogs.map(l => `
+                        <div class="flex items-start space-x-1.5 leading-relaxed">
+                            <span class="text-slate-500 shrink-0">[${l.time}]</span>
+                            <span class="font-bold text-amber-300 shrink-0">[${l.source}]</span>
+                            <span class="text-slate-200">${l.text}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- 12. DEMO SIMULATION HISTORY -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider">9. Simulation Run History</h3>
+                    <span class="text-[9px] text-slate-400">${s.history.length} Runs logged</span>
+                </div>
+
+                <div class="space-y-1.5">
+                    ${s.history.map(h => `
+                        <div class="p-2 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-[10px]">
+                            <div>
+                                <span class="font-black text-slate-900">${h.scenario}</span>
+                                <span class="text-slate-500"> • ${h.location}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-bold text-emerald-700">${h.recipients}</span>
+                                <div class="text-[8px] text-slate-400 font-mono">${h.time}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+        </div>
+    `;
+}
+
+// -------------------------------------------------------------
+// DEMO CONTROLLER FUNCTIONS
+// -------------------------------------------------------------
+
+function selectDemoScenario(scenarioKey) {
+    if (!DEMO_STATE.scenarios[scenarioKey]) return;
+    DEMO_STATE.selectedScenario = scenarioKey;
+    const sc = DEMO_STATE.scenarios[scenarioKey];
+    DEMO_STATE.sliders.rainfall = sc.rainfall;
+    DEMO_STATE.sliders.duration = sc.duration;
+    DEMO_STATE.sliders.waterLevel = sc.waterLevel;
+    DEMO_STATE.sliders.floodProb = sc.floodProb;
+    DEMO_STATE.sliders.saturation = sc.saturation;
+
+    addDemoLog("SCENARIO", `Loaded "${sc.badge}" scenario. Rainfall: ${sc.rainfall}mm/h, Risk: ${sc.riskScore}/100`);
+    refreshDemoUI();
+}
+
+function selectDemoLocationPreset(name, lat, lng) {
+    DEMO_STATE.locationName = name;
+    DEMO_STATE.coords = [lat, lng];
+    addDemoLog("LOCATION", `Target set to ${name} [${lat.toFixed(4)}, ${lng.toFixed(4)}]`);
+    refreshDemoUI();
+    if (DEMO_STATE.activeMap) {
+        DEMO_STATE.activeMap.setView([lat, lng], 12);
+        updateDemoMapCircles();
+    }
+}
+
+function updateDemoRadius(km) {
+    DEMO_STATE.radiusKm = km;
+    addDemoLog("RADIUS", `Impact zone adjusted to ${km} km`);
+    refreshDemoUI();
+    if (DEMO_STATE.activeMap) {
+        updateDemoMapCircles();
+    }
+}
+
+function updateDemoTargetUsers(num) {
+    DEMO_STATE.targetUsers = num;
+    Object.keys(DEMO_STATE.deliveryProgress).forEach(k => {
+        DEMO_STATE.deliveryProgress[k].total = num;
+    });
+    addDemoLog("BROADCAST", `Target population pool set to ${num} citizens`);
+    refreshDemoUI();
+}
+
+function updateDemoSlider(param, value) {
+    DEMO_STATE.sliders[param] = parseFloat(value);
+    DEMO_STATE.selectedScenario = "custom";
+    refreshDemoUI();
+    if (DEMO_STATE.activeMap) {
+        updateDemoMapCircles();
+    }
+}
+
+function toggleDemoPresentationMode() {
+    DEMO_STATE.presentationMode = !DEMO_STATE.presentationMode;
+    showToast(DEMO_STATE.presentationMode ? "🎤 Presenter Mode Enabled: High-contrast layout" : "Standard View Restored", "info");
+    refreshDemoUI();
+}
+
+function clearDemoLogs() {
+    DEMO_STATE.eventLogs = [
+        { time: new Date().toLocaleTimeString("en-IN"), source: "CLEARED", text: "Timeline logs cleared." }
+    ];
+    refreshDemoUI();
+}
+
+function addDemoLog(source, text) {
+    DEMO_STATE.eventLogs.unshift({
+        time: new Date().toLocaleTimeString("en-IN"),
+        source: source,
+        text: text
+    });
+    if (DEMO_STATE.eventLogs.length > 20) DEMO_STATE.eventLogs.pop();
+}
+
+function searchDemoLocation(query) {
+    if (!query) return;
+    DEMO_STATE.locationName = query;
+    addDemoLog("GEOCODE", `Searching coordinates for "${query}"...`);
+    handleLocationSearch(query);
+}
+
+function detectDemoGPS() {
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            DEMO_STATE.coords = [pos.coords.latitude, pos.coords.longitude];
+            DEMO_STATE.locationName = "Device Live GPS Location";
+            addDemoLog("GPS", `Acquired device GPS: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+            refreshDemoUI();
+            if (DEMO_STATE.activeMap) {
+                DEMO_STATE.activeMap.setView(DEMO_STATE.coords, 13);
+                updateDemoMapCircles();
+            }
+            showToast("📍 Demo target updated to GPS location", "success");
+        });
+    } else {
+        showToast("GPS not available", "critical");
+    }
+}
+
+function dismissDemoDeviceNotification() {
+    DEMO_STATE.deviceAlert = null;
+    refreshDemoUI();
+}
+
+function refreshDemoUI() {
+    const viewport = document.getElementById("screen-viewport");
+    if (viewport && STATE.currentTab === "demo") {
+        viewport.innerHTML = renderDemoScreen();
+        initDemoMap();
+        lucide.createIcons();
+    }
+}
+
+// -------------------------------------------------------------
+// 1-CLICK PIPELINE SIMULATION ENGINE (7 STEPS)
+// -------------------------------------------------------------
+
+function startEmergencyDemo() {
+    if (DEMO_STATE.stepTimer) clearTimeout(DEMO_STATE.stepTimer);
+    DEMO_STATE.isRunning = true;
+    DEMO_STATE.isPaused = false;
+    DEMO_STATE.currentStep = 1;
+    
+    // Reset channels
+    Object.keys(DEMO_STATE.deliveryProgress).forEach(k => {
+        DEMO_STATE.deliveryProgress[k].current = 0;
+        DEMO_STATE.deliveryProgress[k].percent = 0;
+        DEMO_STATE.deliveryProgress[k].status = "Processing";
+    });
+
+    addDemoLog("TRIGGER", `🚨 EMERGENCY SIMULATION INITIATED: Scenario="${DEMO_STATE.selectedScenario.toUpperCase()}" for ${DEMO_STATE.locationName}`);
+    showToast("🚨 Emergency Simulation Started!", "critical");
+    
+    refreshDemoUI();
+    executePipelineStep(1);
+}
+
+function pauseDemoSimulation() {
+    DEMO_STATE.isPaused = !DEMO_STATE.isPaused;
+    if (DEMO_STATE.isPaused) {
+        if (DEMO_STATE.stepTimer) clearTimeout(DEMO_STATE.stepTimer);
+        addDemoLog("PAUSE", "Simulation paused by presenter");
+        showToast("Simulation Paused", "info");
+    } else {
+        addDemoLog("RESUME", "Simulation resumed");
+        showToast("Simulation Resumed", "info");
+        executePipelineStep(DEMO_STATE.currentStep + 1);
+    }
+    refreshDemoUI();
+}
+
+function stepEmergencyDemo() {
+    if (DEMO_STATE.currentStep < 7) {
+        DEMO_STATE.currentStep += 1;
+        executePipelineStep(DEMO_STATE.currentStep, true);
+    } else {
+        showToast("All 7 pipeline steps completed!", "success");
+    }
+}
+
+function resetDemoSimulation() {
+    if (DEMO_STATE.stepTimer) clearTimeout(DEMO_STATE.stepTimer);
+    DEMO_STATE.isRunning = false;
+    DEMO_STATE.isPaused = false;
+    DEMO_STATE.currentStep = 0;
+    DEMO_STATE.deviceAlert = null;
+    
+    Object.keys(DEMO_STATE.deliveryProgress).forEach(k => {
+        DEMO_STATE.deliveryProgress[k].current = 0;
+        DEMO_STATE.deliveryProgress[k].percent = 0;
+        DEMO_STATE.deliveryProgress[k].status = "Standby";
+    });
+
+    addDemoLog("RESET", "Demo environment reset to baseline standby");
+    showToast("↻ Demo State Reset", "info");
+    refreshDemoUI();
+}
+
+function executePipelineStep(stepNumber, manual = false) {
+    if (DEMO_STATE.isPaused) return;
+
+    DEMO_STATE.currentStep = stepNumber;
+
+    switch(stepNumber) {
+        case 1:
+            addDemoLog("INGEST", `[Step 1] Ingested live AWS rainfall telemetry: ${DEMO_STATE.sliders.rainfall} mm/h and INSAT-3D WV moisture pool`);
+            break;
+        case 2:
+            addDemoLog("AI-CORE", `[Step 2] Spatiotemporal Transformer inference complete: Risk=${DEMO_STATE.scenarios[DEMO_STATE.selectedScenario].riskScore}/100, Flash Flood Prob=${DEMO_STATE.sliders.floodProb}%`);
+            break;
+        case 3:
+            addDemoLog("RISK-LEVEL", `[Step 3] System status automatically escalated to ${DEMO_STATE.scenarios[DEMO_STATE.selectedScenario].riskLevel}`);
+            break;
+        case 4:
+            addDemoLog("PRECAUTION", `[Step 4] Dynamic Evacuation Path generated: High-ground ridge shelters allocated (Lead Time: ${DEMO_STATE.scenarios[DEMO_STATE.selectedScenario].leadTime})`);
+            break;
+        case 5:
+            addDemoLog("BULLETIN", `[Step 5] Official Multilingual Disaster Bulletin compiled for ${DEMO_STATE.locationName}`);
+            break;
+        case 6:
+            addDemoLog("BROADCAST", `[Step 6] Dispatched multi-channel broadcast across In-App, Push (FCM), SMS & Voice IVR`);
+            // Animate progress to 65%
+            Object.keys(DEMO_STATE.deliveryProgress).forEach(k => {
+                DEMO_STATE.deliveryProgress[k].percent = 65;
+                DEMO_STATE.deliveryProgress[k].current = Math.round(DEMO_STATE.targetUsers * 0.65);
+                DEMO_STATE.deliveryProgress[k].status = "Transmitting...";
+            });
+            break;
+        case 7:
+            addDemoLog("DELIVERY", `[Step 7] All ${DEMO_STATE.targetUsers} citizens notified in ${DEMO_STATE.radiusKm}km radius. Delivery Rate: 100%`);
+            Object.keys(DEMO_STATE.deliveryProgress).forEach(k => {
+                DEMO_STATE.deliveryProgress[k].percent = 100;
+                DEMO_STATE.deliveryProgress[k].current = DEMO_STATE.targetUsers;
+                DEMO_STATE.deliveryProgress[k].status = "Delivered (100%)";
+            });
+
+            // Trigger Smartphone Device Alert
+            DEMO_STATE.deviceAlert = {
+                title: `FLASH FLOOD EMERGENCY — ${DEMO_STATE.locationName.split(',')[0]}`,
+                body: `Severe flood surge (+${DEMO_STATE.sliders.waterLevel}m) predicted within ${DEMO_STATE.scenarios[DEMO_STATE.selectedScenario].leadTime}. Move to high ground immediately.`,
+                time: new Date().toLocaleTimeString("en-IN")
+            };
+
+            // Log history
+            DEMO_STATE.history.unshift({
+                time: new Date().toLocaleTimeString("en-IN"),
+                scenario: DEMO_STATE.scenarios[DEMO_STATE.selectedScenario].title,
+                location: DEMO_STATE.locationName.split(',')[0],
+                risk: `${DEMO_STATE.scenarios[DEMO_STATE.selectedScenario].riskLevel.split(' ')[0]} (${DEMO_STATE.scenarios[DEMO_STATE.selectedScenario].riskScore}/100)`,
+                recipients: `${DEMO_STATE.targetUsers} (100%)`,
+                status: "SUCCESS"
+            });
+            if (DEMO_STATE.history.length > 5) DEMO_STATE.history.pop();
+
+            DEMO_STATE.isRunning = false;
+            showToast(`✅ Complete! ${DEMO_STATE.targetUsers} citizens alerted.`, "success");
+            break;
+    }
+
+    refreshDemoUI();
+
+    if (!manual && stepNumber < 7) {
+        DEMO_STATE.stepTimer = setTimeout(() => {
+            executePipelineStep(stepNumber + 1);
+        }, 1400);
+    }
+}
+
+// -------------------------------------------------------------
+// DEMO LEAFLET MAP CONTROLLER
+// -------------------------------------------------------------
+function initDemoMap() {
+    setTimeout(() => {
+        const container = document.getElementById("demo-map-div");
+        if (!container) return;
+
+        if (DEMO_STATE.activeMap) {
+            DEMO_STATE.activeMap.remove();
+            DEMO_STATE.activeMap = null;
+        }
+
+        const map = L.map('demo-map-div', { zoomControl: false }).setView(DEMO_STATE.coords, 12);
+        
+        // Use ISRO Bhuvan / OSM Basemap
+        const provider = GIS_MAP_PROVIDERS[STATE.gisMapLayer || 'bhuvan'];
+        L.tileLayer(provider.url, provider.options).addTo(map);
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        DEMO_STATE.activeMap = map;
+
+        updateDemoMapCircles();
+    }, 150);
+}
+
+function updateDemoMapCircles() {
+    const map = DEMO_STATE.activeMap;
+    if (!map) return;
+
+    // Clear old layers
+    if (DEMO_STATE.mapLayers && DEMO_STATE.mapLayers.length) {
+        DEMO_STATE.mapLayers.forEach(l => map.removeLayer(l));
+    }
+    DEMO_STATE.mapLayers = [];
+
+    const center = DEMO_STATE.coords;
+    const baseRadiusMeters = DEMO_STATE.radiusKm * 1000;
+
+    // 1. Advisory Zone (Yellow/Amber 35% radius)
+    const c1 = L.circle(center, {
+        radius: Math.round(baseRadiusMeters * 0.35),
+        color: "#ca8a04",
+        fillColor: "#eab308",
+        fillOpacity: 0.18,
+        weight: 1.5,
+        dashArray: "4, 4"
+    }).addTo(map).bindPopup(`<b>⚠️ Advisory Zone</b><br>1.5 km buffer zone`);
+
+    // 2. Warning Zone (Orange 70% radius)
+    const c2 = L.circle(center, {
+        radius: Math.round(baseRadiusMeters * 0.70),
+        color: "#ea580c",
+        fillColor: "#f97316",
+        fillOpacity: 0.22,
+        weight: 2
+    }).addTo(map).bindPopup(`<b>⚠️ Severe Warning Zone</b><br>High risk of rapid flooding`);
+
+    // 3. Emergency Zone Core (Red 100% radius)
+    const c3 = L.circle(center, {
+        radius: baseRadiusMeters,
+        color: "#dc2626",
+        fillColor: "#ef4444",
+        fillOpacity: 0.28,
+        weight: 2.5
+    }).addTo(map).bindPopup(`<b>🚨 CRITICAL EMERGENCY ZONE</b><br>Rain: ${DEMO_STATE.sliders.rainfall} mm/h • Surge: +${DEMO_STATE.sliders.waterLevel}m`);
+
+    // Center Epicenter Marker
+    const m = L.circleMarker(center, {
+        radius: 8,
+        fillColor: "#dc2626",
+        color: "#ffffff",
+        weight: 3,
+        opacity: 1,
+        fillOpacity: 1
+    }).addTo(map).bindPopup(`
+        <div style="font-family:sans-serif; font-size:11px;">
+            <b style="color:#b91c1c;">📍 Simulation Center: ${DEMO_STATE.locationName}</b><br>
+            <span>Target Population: <b>${DEMO_STATE.targetUsers} Citizens</b></span><br>
+            <span>Hazard Core: <b>${DEMO_STATE.radiusKm} km radius</b></span>
+        </div>
+    `);
+
+    DEMO_STATE.mapLayers = [c1, c2, c3, m];
+}
+
 
 </script>
     <script>

@@ -145,11 +145,12 @@
 
                 <!-- Role & Simulation Switcher -->
                 <div class="flex items-center space-x-1.5">
-                    <button onclick="toggleAuthorityMode()" id="role-toggle-btn" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-800 text-blue-100 hover:bg-blue-700 transition border border-blue-600">
-                        👤 Citizen View
+                    <button onclick="navigate('demo')" title="Launch SIH Demo Dashboard" class="px-2 py-1 rounded-lg text-[10px] font-extrabold bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700 transition shadow flex items-center space-x-1 border border-amber-400 active:scale-95">
+                        <span>🎬</span>
+                        <span>SIH Demo</span>
                     </button>
-                    <button onclick="runSimulationSequence()" title="1-Click Emergency Test" class="p-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition shadow">
-                        <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+                    <button onclick="toggleAuthorityMode()" id="role-toggle-btn" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-800 text-blue-100 hover:bg-blue-700 transition border border-blue-600">
+                        👤 Citizen View
                     </button>
                 </div>
             </div>
