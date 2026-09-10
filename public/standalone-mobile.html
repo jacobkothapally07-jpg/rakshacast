@@ -1411,13 +1411,180 @@ function broadcastCrossDeviceEvent(event) {
     }
 }
 
+// =============================================================
+// WEB AUDIO SYNTHETIC EMERGENCY SIREN GENERATOR (Zero Assets Needed)
+// =============================================================
+let emergencyAudioCtx = null;
+let sirenOscillator = null;
+let sirenGainNode = null;
+let sirenInterval = null;
+
+function startEmergencySirenTone() {
+    try {
+        stopEmergencySirenTone();
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        emergencyAudioCtx = new AudioContext();
+        if (emergencyAudioCtx.state === 'suspended') {
+            emergencyAudioCtx.resume();
+        }
+
+        sirenOscillator = emergencyAudioCtx.createOscillator();
+        sirenGainNode = emergencyAudioCtx.createGain();
+
+        sirenOscillator.type = 'sawtooth';
+        sirenGainNode.gain.setValueAtTime(0.35, emergencyAudioCtx.currentTime);
+
+        let freqHigh = true;
+        sirenOscillator.frequency.setValueAtTime(650, emergencyAudioCtx.currentTime);
+
+        sirenInterval = setInterval(() => {
+            if (!sirenOscillator || !emergencyAudioCtx) return;
+            const targetFreq = freqHigh ? 1100 : 650;
+            sirenOscillator.frequency.exponentialRampToValueAtTime(targetFreq, emergencyAudioCtx.currentTime + 0.35);
+            freqHigh = !freqHigh;
+        }, 380);
+
+        sirenOscillator.connect(sirenGainNode);
+        sirenGainNode.connect(emergencyAudioCtx.destination);
+        sirenOscillator.start();
+    } catch(e) {
+        console.warn("Could not play synthesized siren:", e);
+    }
+}
+
+function stopEmergencySirenTone() {
+    if (sirenInterval) {
+        clearInterval(sirenInterval);
+        sirenInterval = null;
+    }
+    if (sirenOscillator) {
+        try { sirenOscillator.stop(); sirenOscillator.disconnect(); } catch(e) {}
+        sirenOscillator = null;
+    }
+    if (sirenGainNode) {
+        try { sirenGainNode.disconnect(); } catch(e) {}
+        sirenGainNode = null;
+    }
+    if (emergencyAudioCtx) {
+        try { emergencyAudioCtx.close(); } catch(e) {}
+        emergencyAudioCtx = null;
+    }
+}
+
+function showLiveCitizenEmergencyModal(event) {
+    // 1. Play continuous emergency siren
+    startEmergencySirenTone();
+
+    // 2. Vibrate phone
+    if ("vibrate" in navigator) {
+        try { navigator.vibrate([1000, 300, 1000, 300, 1500]); } catch(e) {}
+    }
+
+    // 3. System Push Notification
+    if ("Notification" in window && Notification.permission === "granted") {
+        try {
+            new Notification(`🚨 RAKSHACAST: ${event.title}`, {
+                body: `${event.instructions} (Surge: +${event.waterLevel}m, Rain: ${event.rainfall} mm/h)`,
+                icon: "/favicon.ico",
+                requireInteraction: true
+            });
+        } catch(e) {}
+    }
+
+    // 4. Update In-App alert list
+    const incomingAlert = {
+        id: `ALT-LIVE-${Math.floor(100 + Math.random()*899)}`,
+        title: event.title || "RED CRITICAL: Severe Flash Flood Warning",
+        area: event.location || "Your Current Sector Basin",
+        severity: "CRITICAL",
+        timeIssued: "Just now (Live Broadcast)",
+        instructions: event.instructions || "Move to designated high-ground shelters immediately."
+    };
+    if (!STATE.alerts.some(a => a.title === incomingAlert.title)) {
+        STATE.alerts.unshift(incomingAlert);
+        saveSettingsToStorage();
+    }
+
+    // 5. Full-Screen Red Pulsing Modal
+    const container = document.getElementById("modal-container");
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="bg-gradient-to-b from-red-950 via-slate-900 to-slate-950 border-2 border-red-500 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl text-white relative animate-pulse">
+            <div class="flex items-center justify-between pb-2 border-b border-red-800/80">
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white shadow-sm flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                    <span>🚨 ${event.severity || 'CRITICAL EMERGENCY'}</span>
+                </span>
+                <span class="text-[10px] font-mono text-red-300 font-bold">${event.time || 'LIVE NOWCAST'}</span>
+            </div>
+
+            <div class="space-y-1.5">
+                <h3 class="text-base font-black text-white leading-snug">${event.title}</h3>
+                <p class="text-xs text-red-200 font-medium">📍 Impact Zone: <b>${event.location}</b></p>
+                
+                <div class="p-3 bg-red-900/60 rounded-xl border border-red-500/60 text-xs font-bold text-white shadow-inner space-y-1">
+                    <div class="flex items-center space-x-1 text-amber-300">
+                        <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                        <span>Immediate Action Required:</span>
+                    </div>
+                    <p class="text-[11px] font-medium text-slate-100">${event.instructions}</p>
+                </div>
+            </div>
+
+            <!-- Sensor Telemetry Chips -->
+            <div class="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
+                <div class="p-2 bg-black/40 rounded-xl border border-white/10">
+                    <span class="text-[8px] text-slate-400 block uppercase">Rainfall</span>
+                    <span class="font-bold text-blue-300">${event.rainfall || 120} mm/h</span>
+                </div>
+                <div class="p-2 bg-black/40 rounded-xl border border-white/10">
+                    <span class="text-[8px] text-slate-400 block uppercase">Water Surge</span>
+                    <span class="font-bold text-red-300">+${event.waterLevel || 3.4}m</span>
+                </div>
+                <div class="p-2 bg-black/40 rounded-xl border border-white/10">
+                    <span class="text-[8px] text-slate-400 block uppercase">Lead Window</span>
+                    <span class="font-bold text-amber-300">${event.leadTime || '1.5 hrs'}</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="space-y-2 pt-1">
+                <button onclick="stopEmergencySirenTone(); closeModal(); navigate('evacuate');" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg flex items-center justify-center space-x-1.5 transition active:scale-95">
+                    <i data-lucide="navigation" class="w-4 h-4"></i>
+                    <span>🗺️ View Safe Evacuation Route</span>
+                </button>
+                <button onclick="stopEmergencySirenTone(); closeModal();" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-[10px] font-bold border border-slate-700 transition">
+                    🔇 Mute Siren & Acknowledge
+                </button>
+            </div>
+        </div>
+    `;
+    container.classList.remove("hidden");
+    container.classList.add("flex");
+    if (window.lucide) lucide.createIcons();
+
+    if (STATE.currentTab === "alerts") {
+        navigate("alerts");
+    }
+}
+
 function handleIncomingSyncEvent(event) {
     if (!event || !event.type) return;
     if (event.originId === window.__RAKSHACAST_CLIENT_ID__) return; // ignore self-broadcast
 
-    if (event.type === "NEW_SOS_DISTRESS" && event.sosRecord) {
+    if (event.type === "DEMO_EMERGENCY_TRIGGERED") {
+        console.log("🚨 [RakshaCast Sync] Received Live Emergency Broadcast from Laptop Presenter:", event);
+        showLiveCitizenEmergencyModal(event);
+        showToast(`🚨 INCOMING EMERGENCY ALERT: ${event.title}`, "critical");
+    } else if (event.type === "DEMO_EMERGENCY_RESET") {
+        console.log("↻ [RakshaCast Sync] Resetting Active Emergency from Laptop Presenter");
+        stopEmergencySirenTone();
+        closeModal();
+        showToast("↻ Emergency Status Cleared by Presenter", "info");
+    } else if (event.type === "NEW_SOS_DISTRESS" && event.sosRecord) {
         const incoming = event.sosRecord;
-        // Check if already in queue
         const exists = STATE.sosQueue.some(s => s.id === incoming.id);
         if (!exists) {
             STATE.sosQueue.unshift(incoming);
@@ -4063,6 +4230,47 @@ function renderDemoScreen() {
                 </div>
             </div>
 
+            <!-- 7.5 LIVE CROSS-DEVICE SMARTPHONE SYNC & QR CODE -->
+            <div class="bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-900 text-white rounded-2xl p-4 shadow-md border border-indigo-500/50 space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b border-white/10">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xl animate-pulse">📡</span>
+                        <div>
+                            <h3 class="text-xs font-black uppercase tracking-wider text-white">Live Cross-Device Real-Time Sync</h3>
+                            <p class="text-[9px] text-blue-200">Connect your physical smartphone for real-time siren testing</p>
+                        </div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-[9px] font-black ${STATE.liveSync && STATE.liveSync.connected ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'} flex items-center space-x-1">
+                        <span class="w-1.5 h-1.5 rounded-full ${STATE.liveSync && STATE.liveSync.connected ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}"></span>
+                        <span>${STATE.liveSync && STATE.liveSync.connected ? 'SYNC ACTIVE' : 'CONNECTING...'}</span>
+                    </span>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-center gap-3 bg-slate-900/80 p-3 rounded-xl border border-white/10">
+                    <!-- QR Code to scan with real phone -->
+                    <div class="bg-white p-1.5 rounded-xl shrink-0 shadow">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://rakshacast-sih2026.surge.sh" alt="Scan with Phone" class="w-24 h-24 rounded-lg block">
+                    </div>
+
+                    <div class="flex-1 space-y-1.5 text-center sm:text-left">
+                        <h4 class="text-xs font-bold text-white">📱 Scan QR Code on your Smartphone</h4>
+                        <p class="text-[10px] text-slate-300 leading-relaxed">Open the app on your phone. When you press <b>"Start Emergency Demo"</b> on this laptop, your phone will immediately play the <b>loud emergency siren</b>, vibrate, and pop up the live evacuation alert.</p>
+                        <div class="text-[9px] font-mono text-blue-300">Live Gateway: broker.emqx.io:8084 (Zero Lag)</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button onclick="testCitizenPhoneSiren()" class="py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider shadow flex items-center justify-center space-x-1.5 transition active:scale-95">
+                        <i data-lucide="volume-2" class="w-4 h-4"></i>
+                        <span>🔊 Test Phone Siren Now</span>
+                    </button>
+                    <button onclick="broadcastEmergencyToConnectedPhones()" class="py-2.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs uppercase tracking-wider shadow flex items-center justify-center space-x-1.5 transition active:scale-95">
+                        <i data-lucide="radio" class="w-4 h-4"></i>
+                        <span>🚨 Push Emergency to Phone</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- 8. INTERACTIVE DEMO MAP (DYNAMIC DANGER CIRCLES) -->
             <div class="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2.5">
                 <div class="flex items-center justify-between">
@@ -4236,8 +4444,44 @@ function renderDemoScreen() {
 }
 
 // -------------------------------------------------------------
-// DEMO CONTROLLER FUNCTIONS
+// DEMO CONTROLLER FUNCTIONS & REAL-TIME BROADCASTERS
 // -------------------------------------------------------------
+
+function broadcastEmergencyToConnectedPhones() {
+    const sc = DEMO_STATE.scenarios[DEMO_STATE.selectedScenario] || DEMO_STATE.scenarios.flood;
+    broadcastCrossDeviceEvent({
+        type: "DEMO_EMERGENCY_TRIGGERED",
+        scenario: sc.title,
+        title: `🚨 ${sc.badge.toUpperCase()} EMERGENCY: ${DEMO_STATE.locationName.split(',')[0]}`,
+        location: DEMO_STATE.locationName,
+        severity: sc.riskLevel,
+        riskScore: sc.riskScore,
+        rainfall: DEMO_STATE.sliders.rainfall,
+        waterLevel: DEMO_STATE.sliders.waterLevel,
+        leadTime: sc.leadTime,
+        instructions: `Move to high-ground shelters immediately. Evacuation corridor activated (Surge factor: +${DEMO_STATE.sliders.waterLevel}m, Rain: ${DEMO_STATE.sliders.rainfall} mm/h).`,
+        time: new Date().toLocaleTimeString("en-IN")
+    });
+    showToast("📡 Emergency alert broadcasted across all connected phones!", "critical");
+}
+
+function testCitizenPhoneSiren() {
+    const sc = DEMO_STATE.scenarios[DEMO_STATE.selectedScenario] || DEMO_STATE.scenarios.flood;
+    broadcastCrossDeviceEvent({
+        type: "DEMO_EMERGENCY_TRIGGERED",
+        scenario: "Live Siren Hardware Test",
+        title: "TEST BROADCAST: SIREN & EVACUATION ALARM",
+        location: DEMO_STATE.locationName,
+        severity: "CRITICAL TEST",
+        riskScore: 90,
+        rainfall: DEMO_STATE.sliders.rainfall,
+        waterLevel: DEMO_STATE.sliders.waterLevel,
+        leadTime: "Immediate",
+        instructions: "This is a real-time live demo test signal. Audio siren and vibration verified.",
+        time: new Date().toLocaleTimeString("en-IN")
+    });
+    showToast("🔊 Test Emergency Siren Signal Sent to Connected Phones!", "success");
+}
 
 function selectDemoScenario(scenarioKey) {
     if (!DEMO_STATE.scenarios[scenarioKey]) return;
@@ -4372,6 +4616,9 @@ function startEmergencyDemo() {
     addDemoLog("TRIGGER", `🚨 EMERGENCY SIMULATION INITIATED: Scenario="${DEMO_STATE.selectedScenario.toUpperCase()}" for ${DEMO_STATE.locationName}`);
     showToast("🚨 Emergency Simulation Started!", "critical");
     
+    // Immediately broadcast to physical smartphones via Cloud WebSocket Mesh
+    broadcastEmergencyToConnectedPhones();
+
     refreshDemoUI();
     executePipelineStep(1);
 }
@@ -4412,6 +4659,11 @@ function resetDemoSimulation() {
         DEMO_STATE.deliveryProgress[k].status = "Standby";
     });
 
+    // Broadcast reset to physical smartphones to stop sirens and dismiss popups
+    broadcastCrossDeviceEvent({
+        type: "DEMO_EMERGENCY_RESET"
+    });
+
     addDemoLog("RESET", "Demo environment reset to baseline standby");
     showToast("↻ Demo State Reset", "info");
     refreshDemoUI();
@@ -4446,6 +4698,7 @@ function executePipelineStep(stepNumber, manual = false) {
                 DEMO_STATE.deliveryProgress[k].current = Math.round(DEMO_STATE.targetUsers * 0.65);
                 DEMO_STATE.deliveryProgress[k].status = "Transmitting...";
             });
+            broadcastEmergencyToConnectedPhones();
             break;
         case 7:
             addDemoLog("DELIVERY", `[Step 7] All ${DEMO_STATE.targetUsers} citizens notified in ${DEMO_STATE.radiusKm}km radius. Delivery Rate: 100%`);
@@ -4461,6 +4714,9 @@ function executePipelineStep(stepNumber, manual = false) {
                 body: `Severe flood surge (+${DEMO_STATE.sliders.waterLevel}m) predicted within ${DEMO_STATE.scenarios[DEMO_STATE.selectedScenario].leadTime}. Move to high ground immediately.`,
                 time: new Date().toLocaleTimeString("en-IN")
             };
+
+            // Re-broadcast final confirmation
+            broadcastEmergencyToConnectedPhones();
 
             // Log history
             DEMO_STATE.history.unshift({
