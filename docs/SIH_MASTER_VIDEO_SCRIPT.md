@@ -1,25 +1,26 @@
-# ⚡ RakshaCast: Direct Technical Video Walkthrough Script (2.5 Minutes)
+# ⚡ RakshaCast: Direct Technical Video Script (With Deep-Dive Demo Section)
 
 > **Live App:** [https://rakshacast-sih2026.surge.sh](https://rakshacast-sih2026.surge.sh)  
 > **GitHub:** [https://github.com/jacobkothapally07-jpg/rakshacast](https://github.com/jacobkothapally07-jpg/rakshacast)  
-> **Format:** No fluff, direct technical screen-by-screen explanation of what we use, how it works, and why.
+> **Duration:** ~3.0 to 3.5 Minutes  
+> **Format:** Direct, technical, no-fluff walkthrough explaining exact technologies, screens, and functions.
 
 ---
 
-## 🎙️ Straight-to-the-Point Video Script
+## 🎙️ Direct Screen-by-Screen Script
 
 ---
 
 ### [00:00 – 00:20] 1. Architecture Overview
-**[SHOW]:** App Home Screen / Header
-> *"This is **RakshaCast**, a hyper-local disaster early-warning system built for MoES/IMD guidelines.  
+* **[SHOW]:** App Home Screen / Top Header
+> *"This is **RakshaCast**, a hyper-local disaster early-warning system built to MoES and IMD guidelines.  
 > We ingest live meteorological feeds every 3 minutes, run an on-device risk calculation model, and deliver emergency alerts across two pathways: **High-speed WebSockets** for normal cellular networks, and **ISRO NavIC S-Band Satellite Direct** when 100% of cell towers collapse."*
 
 ---
 
-### [00:20 – 00:50] 2. Nowcast Dashboard: Live Telemetry & Risk Scoring
-**[SHOW]:** Nowcast Screen (`Home` tab) $\rightarrow$ Point to Hero Card, Action Window, and 24h Forecast.
-> *"**What we use:** Open-Meteo Global NWP & OpenStreetMap Nominatim APIs.  
+### [00:20 – 00:50] 2. Nowcast Screen: Live Telemetry & Risk Scoring
+* **[SHOW]:** Nowcast Screen (`Home` tab) $\rightarrow$ Point to Hero Card, Action Window, and 24h Forecast.
+> *"**What we use:** Open-Meteo Global NWP and OpenStreetMap Nominatim APIs.  
 > **What it does:**  
 > - Automatically detects the user's GPS coordinates and polls live rainfall intensity, humidity, wind, and WMO storm codes.  
 > - Our on-device risk algorithm calculates a **Threat Score (0–100)** and a live **Action Window (Lead Time)**.  
@@ -28,7 +29,7 @@
 ---
 
 ### [00:50 – 01:25] 3. Live GIS Map: Multi-Layer Satellite Hazard Radii
-**[SHOW]:** `Live Map` tab $\rightarrow$ Toggle **ISRO Bhuvan**, **MOSDAC Water Vapor**, and drag the **Inundation Slider**.
+* **[SHOW]:** `Live Map` tab $\rightarrow$ Toggle **ISRO Bhuvan**, **MOSDAC Water Vapor**, and drag the **Inundation Slider**.
 > *"**What we use:** Leaflet.js GIS engine layered with ISRO Bhuvan satellite WMS, MOSDAC INSAT-3D Water Vapor cloud IR, and CartoDEM 30m elevation models.  
 > **What it does:**  
 > - Dynamically renders **color-coded hazard circles**: Blue for Flood Inundation Surge and Red for Cloudburst Moisture Core.  
@@ -37,18 +38,31 @@
 
 ---
 
-### [01:25 – 02:00] 4. Live Emergency Demo: Real-Time Laptop-to-Phone Siren Sync
-**[SHOW]:** Laptop on `🎬 Demo` tab $\rightarrow$ Click `🚀 Start Emergency Demo Simulation` $\rightarrow$ Show mobile phone sounding siren with red alert modal.
-> *"**What we use:** MQTT over Secure WebSockets (`wss://broker.hivemq.com:8884`) and Web Audio API synthesizer.  
-> **What it does:**  
-> - When an emergency is triggered on the dashboard, it broadcasts an encrypted payload across our WebSocket mesh.  
-> - In under **150 ms**, the citizen's mobile phone rings a high-decibel acoustic siren and opens an un-dismissible **Red Evacuation Modal** in Hindi and English.  
-> - Tapping **'Evacuate Safe Route'** generates topological escape routing that actively navigates around flooded polygons."*
+### [01:25 – 02:15] 4. 🎬 The Demo Section & Real-Time Cross-Device Siren Sync
+* **[SHOW]:** Laptop on `🎬 Demo` tab:
+  1. Point to the **`🟢 DEMO ENVIRONMENT • SAFE ISOLATION`** badge.
+  2. Select preset: **`🌊 Flash Flood (Haridwar Basin)`**.
+  3. Show the **Impact Radius Slider (5 km)** and the calculated **Target Population (1,480 Citizens)**.
+  4. Click **`🚀 Start Emergency Demo Simulation`** and point to the 3-step pipeline:
+     - `Step 1: Anomaly Ingested (Rain: 32 mm/h, Surge: +3.45m)`
+     - `Step 2: Risk Calculated (Threat: 88/100, Action Window: 1.5h)`
+     - `Step 3: Alert Broadcasted across WebSockets`
+  5. **Hold up your mobile phone as the loud acoustic siren blares and the Red Modal appears!**
+  6. Tap **`Evacuate Safe Route`** on the phone.
+
+> *"**What we use:** Cloud MQTT over Secure WebSockets (`wss://broker.hivemq.com:8884`), Browser BroadcastChannel, and Web Audio API synthesizer.  
+> 
+> **How the Demo Section works:**  
+> - **Safe Sandbox Isolation:** It runs in an isolated testing environment so we can simulate severe disasters on stage without triggering public false alarms.  
+> - **6 Built-in Disaster Presets:** Includes Flash Floods, Cloudbursts, Severe Thunderstorms, Cyclones, Heatwaves, and Custom Scenarios across Indian disaster hotspots (Uttarakhand, Assam Brahmaputra, Kerala).  
+> - **Dynamic Impact Modeling:** Adjusting the **Impact Radius Slider** recalculates the affected citizen count in real-time (e.g. 1,480 citizens in a 5 km zone).  
+> - **The 3-Step Automated Pipeline:** When I click Start Simulation, the system ingests the anomaly, calculates an 88/100 Threat Score, shrinks the Action Window from 12h to 1.5h, and publishes an encrypted payload over WebSockets.  
+> - **Instant Cross-Device Sync:** In under **150 milliseconds**, my mobile phone sounds a high-decibel acoustic siren and displays an un-dismissible **Red Evacuation Alert** in Hindi and English with safe topological escape routing around flooded zones."*
 
 ---
 
-### [02:00 – 02:35] 5. ISRO NavIC Sat-Direct: Zero-Telecom Mode
-**[SHOW]:** `🛰️ NavIC` screen $\rightarrow$ Click `🚨 Simulate 100% Cellular Failure` $\rightarrow$ Show Polar Radar Canvas & Hex Packet Decoder.
+### [02:15 – 02:50] 5. ISRO NavIC Sat-Direct: Zero-Telecom Mode
+* **[SHOW]:** `🛰️ NavIC` screen $\rightarrow$ Click `🚨 Simulate 100% Cellular Failure` $\rightarrow$ Show Polar Radar Canvas & Hex Packet Decoder.
 > *"**What we use:** ISRO IRNSS NavIC S-Band (2492.028 MHz) Early Warning Messaging (EWMS) and Return Link Service (RLS) protocol standards.  
 > **What it does:**  
 > - When cell towers fail, the app switches to **Sat-Direct Mode**.  
@@ -58,8 +72,8 @@
 
 ---
 
-### [02:35 – 03:00] 6. NDRF Officer Hub & Summary
-**[SHOW]:** Toggle to `🛡️ Officer View` $\rightarrow$ Show SOS Triage Queue & Relief Kit QR Pass.
+### [02:50 – 03:15] 6. NDRF Officer Hub & Summary
+* **[SHOW]:** Toggle to `🛡️ Officer View` $\rightarrow$ Show SOS Triage Queue & Relief Kit QR Pass.
 > *"**What we use:** PWA Service Workers + Native Android Capacitor wrapper.  
 > **What it does:**  
 > - Gives NDRF officers a live **Citizen SOS Triage Queue** with exact GPS pins and drone telemetry.  
@@ -69,13 +83,14 @@
 
 ---
 
-## 📊 Quick Summary Table (For Your PPT Slide)
+## 📊 Summary Table (Copy-Paste Ready for PPT Slide)
 
-| Component | Technology Used | Exact Function / Benefit |
+| Component | Technology / Data Source | Exact Function & Benefit |
 | :--- | :--- | :--- |
-| **Meteorological Ingestion** | Open-Meteo & IMD Numerical Models | Live rainfall, wind, humidity, and storm codes polled every 3 minutes. |
+| **Meteorological Ingestion** | Open-Meteo & IMD Models | Live rainfall (mm/h), wind, humidity, and storm codes polled every 3 minutes. |
 | **Predictive Risk Engine** | On-Device ML Risk Algorithm | Calculates 0–100 Threat Index and shrinking Action Window (12h $\rightarrow$ 1.5h). |
-| **Geospatial GIS Engine** | Leaflet.js + ISRO Bhuvan & MOSDAC INSAT-3D | Projects dynamic flood surge, cloudburst core, and +6h inundation forecast. |
+| **Geospatial GIS Engine** | Leaflet.js + ISRO Bhuvan & MOSDAC | Projects dynamic flood surge, cloudburst core, and +6h inundation forecast. |
+| **🎬 1-Click SIH Demo Sandbox**| 6 Scenario Presets + Radius Modeler | Isolated testbed simulating end-to-end disaster dispatch for 1,480+ target citizens. |
 | **Cross-Device Emergency Sync**| MQTT over WebSockets (`wss://`) | Real-time laptop-to-phone siren & modal synchronization in $<150\text{ms}$. |
 | **Zero-Telecom Failover** | ISRO NavIC S-Band (2492.028 MHz) EWMS | Receives satellite warning bulletins directly when 100% of cell towers collapse. |
 | **Satellite Return Link (RLS)**| ISRO IRNSS Two-Way Protocol | Beams citizen SOS straight to orbit with ISRO ISTRAC Ground Station ACK. |
