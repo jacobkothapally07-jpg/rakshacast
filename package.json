@@ -10,6 +10,9 @@
     "server": "node server/index.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
     "cors": "^2.8.5",
     "expo": "~52.0.30",
     "expo-asset": "~11.0.3",

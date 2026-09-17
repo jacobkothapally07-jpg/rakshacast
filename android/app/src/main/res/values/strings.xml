@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RakshaCast</string>
+    <string name="title_activity_main">RakshaCast</string>
+    <string name="package_name">com.rakshacast.app</string>
+    <string name="custom_url_scheme">com.rakshacast.app</string>
+</resources>
