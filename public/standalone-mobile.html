@@ -404,6 +404,37 @@ let STATE = {
         client: null,
         broadcastChannel: null,
         channelName: "rakshacast_emergency_bus"
+    },
+
+    // ISRO NavIC (IRNSS) Satellite-Direct Early Warning Messaging Service (EWMS) & Zero-Telecom Gateway
+    navic: {
+        enabled: true,
+        zeroTelecomMode: false,
+        sBandConnected: true,
+        frequency: "2492.028 MHz (S-Band / L5 Dual-Carrier)",
+        receiverChipset: "ISRO NavIC S-Band EWMS Direct (Bypasses 4G/5G Cellular Towers)",
+        constellationStatus: "7/7 SATELLITES HEALTHY",
+        lockedCount: 6,
+        satellites: [
+            { id: "IRNSS-1B", prn: "02", orbit: "GEO 55.0°E", elevation: 68, azimuth: 192, snr: 45.2, band: "S-Band + L5", status: "LOCKED", role: "Primary EWMS Downlink" },
+            { id: "IRNSS-1C", prn: "03", orbit: "GEO 83.0°E", elevation: 76, azimuth: 164, snr: 47.8, band: "S-Band + L5", status: "LOCKED", role: "Early Warning Telemetry" },
+            { id: "IRNSS-1F", prn: "06", orbit: "GEO 32.5°E", elevation: 48, azimuth: 242, snr: 42.1, band: "L5 / S-Band", status: "LOCKED", role: "Navigation & Timing" },
+            { id: "IRNSS-1I", prn: "09", orbit: "GSO 55.0°E", elevation: 58, azimuth: 135, snr: 44.0, band: "L5 / S-Band", status: "LOCKED", role: "Return Link Beacon" },
+            { id: "NVS-01", prn: "10", orbit: "GSO 111.75°E", elevation: 42, azimuth: 118, snr: 41.5, band: "L1 / L5 / S-Band", status: "LOCKED", role: "Next-Gen L1/S Signal" },
+            { id: "IRNSS-1E", prn: "05", orbit: "GSO 111.75°E", elevation: 38, azimuth: 104, snr: 39.8, band: "L5 / S-Band", status: "TRACKING", role: "Backup Telemetry" }
+        ],
+        lastPacketReceived: {
+            rawHex: "55 AA 04 1E 08 4E 1A 9B 4F 82 11 F0 38 29",
+            msgType: "EWMS-04 (Flash Flood Surge)",
+            targetGrid: "30.08°N, 78.26°E (Haridwar Basin)",
+            severity: "CRITICAL",
+            surgeFactor: "+3.45m",
+            leadTime: "1.5 hrs",
+            checksum: "0x9B4F (CRC-16 OK)",
+            timestamp: new Date().toLocaleTimeString("en-IN") + " IST"
+        },
+        returnLinkStatus: "STANDBY",
+        sosSentViaNavIC: false
     }
 };
 
@@ -1874,6 +1905,7 @@ function navigate(tabId) {
         case "sos": viewport.innerHTML = renderSOSScreen(); break;
         case "shelters": viewport.innerHTML = renderSheltersScreen(); break;
         case "mesh-simulator": viewport.innerHTML = renderMeshSimulatorScreen(); break;
+        case "navic": viewport.innerHTML = renderNavICScreen(); initNavICCanvas(); break;
         case "cwc-telemetry": viewport.innerHTML = renderCwcTelemetryScreen(); break;
         case "broadcast-preview": viewport.innerHTML = renderBroadcastPreviewScreen(); break;
         case "recovery": viewport.innerHTML = renderRecoveryScreen(); break;
@@ -1944,6 +1976,23 @@ function renderHomeScreen() {
                     </span>
                 </div>
             </div>
+
+            <!-- SATELLITE DIRECT ZERO TELECOM ACTIVE BANNER -->
+            ${STATE.navic && STATE.navic.zeroTelecomMode ? `
+                <div class="bg-gradient-to-r from-slate-950 via-indigo-950 to-blue-950 text-white p-3 rounded-xl border border-cyan-500/40 shadow-md flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-cyan-950 text-cyan-300 border border-cyan-500/50 flex items-center justify-center text-base animate-pulse">🛰️</div>
+                        <div>
+                            <div class="flex items-center space-x-1.5">
+                                <span class="text-xs font-black text-cyan-300">ISRO NavIC SAT-DIRECT</span>
+                                <span class="px-1.5 py-0.2 bg-emerald-600 text-white rounded text-[8px] font-extrabold tracking-wider">ZERO TELECOM</span>
+                            </div>
+                            <p class="text-[10px] text-indigo-200">Ground 4G/5G towers down • S-Band (2492 MHz) Live</p>
+                        </div>
+                    </div>
+                    <button onclick="navigate('navic')" class="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-extrabold rounded-lg shadow transition active:scale-95">Radar →</button>
+                </div>
+            ` : ''}
 
             <!-- OFFLINE WARNING BANNER -->
             ${STATE.isOffline ? `
@@ -2252,6 +2301,19 @@ function renderHomeScreen() {
 
             <!-- SECTION 8: INNOVATION QUICK ACTIONS -->
             <div class="grid grid-cols-2 gap-2.5">
+                <button onclick="navigate('navic')" class="p-3 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white border border-indigo-700/80 hover:border-cyan-400 rounded-xl flex items-center space-x-2.5 text-left transition active:scale-95 shadow-xs col-span-2">
+                    <div class="w-9 h-9 rounded-lg bg-indigo-900/80 text-cyan-300 border border-indigo-500/40 flex items-center justify-center shrink-0 text-base">
+                        🛰️
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs font-black text-white truncate">ISRO NavIC Satellite-Direct</p>
+                            <span class="px-1.5 py-0.2 bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 rounded text-[8px] font-mono font-bold">2492 MHz</span>
+                        </div>
+                        <p class="text-[9px] text-indigo-200">Zero-Telecom Messaging & Celestial Polar Skyplot</p>
+                    </div>
+                </button>
+
                 <button onclick="navigate('mesh-simulator')" class="p-3 bg-white border border-slate-200 hover:border-blue-400 rounded-xl flex items-center space-x-2.5 text-left transition active:scale-95 shadow-xs">
                     <div class="w-9 h-9 rounded-lg bg-blue-100 text-blue-900 flex items-center justify-center shrink-0">
                         <i data-lucide="cpu" class="w-5 h-5"></i>
@@ -3039,7 +3101,466 @@ function renderAuthorityScreen() {
 }
 
 // -------------------------------------------------------------
-// 7. OTHER SCREENS (MESH, CWC, BROADCAST, RECOVERY, SHELTERS, ALERTS)
+// 7. ISRO NavIC SATELLITE-DIRECT & ZERO-TELECOM MODE (EWMS & RLS)
+// -------------------------------------------------------------
+let navicAnimationId = null;
+
+function renderNavICScreen() {
+    const n = STATE.navic || {
+        enabled: true,
+        zeroTelecomMode: false,
+        sBandConnected: true,
+        frequency: "2492.028 MHz (S-Band / L5)",
+        constellationStatus: "7/7 SATELLITES HEALTHY",
+        lockedCount: 6,
+        satellites: [],
+        lastPacketReceived: {},
+        returnLinkStatus: "STANDBY"
+    };
+
+    return `
+        <div class="space-y-3.5">
+            <!-- SCREEN HEADER -->
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white p-4 rounded-2xl border border-cyan-500/30 shadow-md space-y-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-10 h-10 rounded-xl bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 flex items-center justify-center text-xl shadow-inner">
+                            🛰️
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-1.5">
+                                <h2 class="text-sm font-black text-white tracking-tight">ISRO NavIC Sat-Direct</h2>
+                                <span class="px-1.5 py-0.2 bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 rounded text-[8px] font-mono font-bold">EWMS v2.4</span>
+                            </div>
+                            <p class="text-[10px] text-indigo-200">Early Warning Messaging via S-Band (2492.028 MHz)</p>
+                        </div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 flex items-center space-x-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span>7/7 HEALTHY</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- ZERO-TELECOM FAILOVER SIMULATION SWITCH -->
+            <div class="bg-white border ${n.zeroTelecomMode ? 'border-amber-400 bg-amber-50/40' : 'border-slate-200'} p-3.5 rounded-2xl shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-xs font-black text-slate-900">Zero-Telecom Downlink Pipeline</span>
+                            ${n.zeroTelecomMode ? `
+                                <span class="px-2 py-0.5 rounded text-[8px] font-black bg-red-600 text-white animate-pulse">
+                                    🚨 CELLULAR TOWER BLACKOUT
+                                </span>
+                            ` : `
+                                <span class="px-2 py-0.5 rounded text-[8px] font-bold bg-slate-100 text-slate-600 border border-slate-300">
+                                    HYBRID DUAL-PATH
+                                </span>
+                            `}
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Direct geostationary broadcast when cellular ground towers fail</p>
+                    </div>
+                </div>
+
+                <div class="p-2.5 rounded-xl border ${n.zeroTelecomMode ? 'bg-indigo-950 border-cyan-500/40 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'} space-y-1.5 text-xs font-mono">
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-slate-400">Terrestrial 4G/5G Network:</span>
+                        <span class="font-bold ${n.zeroTelecomMode ? 'text-red-400' : 'text-emerald-700'}">${n.zeroTelecomMode ? '✕ DOWN (0% Towers)' : '✓ Connected (AirTel/Jio)'}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-slate-400">ISRO IRNSS Geostationary Link:</span>
+                        <span class="font-bold text-cyan-400">● 2492.028 MHz (S-Band LOCKED)</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-slate-400">Early Warning Message Latency:</span>
+                        <span class="font-bold text-emerald-400">&lt; 850 ms (Direct-to-Chip)</span>
+                    </div>
+                </div>
+
+                <button onclick="toggleNavICZeroTelecomMode()" class="w-full py-2.5 rounded-xl text-xs font-extrabold shadow flex items-center justify-center space-x-2 transition active:scale-95 ${n.zeroTelecomMode ? 'bg-emerald-700 hover:bg-emerald-800 text-white' : 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white shadow-md'}">
+                    <i data-lucide="${n.zeroTelecomMode ? 'wifi' : 'wifi-off'}" class="w-4 h-4"></i>
+                    <span>${n.zeroTelecomMode ? 'Restore 4G/5G Cellular Network Connection' : '🚨 Simulate 100% Cellular Tower Failure (Force NavIC Sat-Direct)'}</span>
+                </button>
+            </div>
+
+            <!-- CELESTIAL POLAR SKYPLOT RADAR CANVAS -->
+            <div class="bg-slate-900 border border-indigo-900/80 p-4 rounded-2xl shadow-md text-white space-y-3">
+                <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                    <div>
+                        <h3 class="text-xs font-black text-cyan-300 tracking-wider uppercase flex items-center space-x-1.5">
+                            <i data-lucide="crosshair" class="w-4 h-4 text-cyan-400"></i>
+                            <span>Celestial Polar Skyplot Radar</span>
+                        </h3>
+                        <p class="text-[9px] text-slate-400">Overhead India Constellation Tracking (Zenith 90° @ Center)</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[9px] text-slate-400 uppercase font-mono block">Avg CNR</span>
+                        <span class="text-xs font-black text-emerald-400 font-mono">43.8 dB-Hz</span>
+                    </div>
+                </div>
+
+                <!-- Animated Radar Canvas Container -->
+                <div class="relative flex justify-center items-center py-2">
+                    <canvas id="navic-polar-radar" width="280" height="280" class="rounded-full bg-slate-950 border-2 border-cyan-500/40 shadow-inner block"></canvas>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 text-center text-[10px] font-mono pt-1 border-t border-slate-800">
+                    <div class="p-1.5 bg-slate-800/80 rounded-lg border border-slate-700">
+                        <span class="text-slate-400 block text-[8px]">LOCKED BIRDS</span>
+                        <span class="font-bold text-emerald-400 text-xs">6 / 7</span>
+                    </div>
+                    <div class="p-1.5 bg-slate-800/80 rounded-lg border border-slate-700">
+                        <span class="text-slate-400 block text-[8px]">PRIMARY BAND</span>
+                        <span class="font-bold text-cyan-300 text-xs">S-Band (2.4G)</span>
+                    </div>
+                    <div class="p-1.5 bg-slate-800/80 rounded-lg border border-slate-700">
+                        <span class="text-slate-400 block text-[8px]">DOP / ACCURACY</span>
+                        <span class="font-bold text-emerald-400 text-xs">HDOP 0.82 (Sub-M)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SATELLITE CONSTELLATION TELEMETRY TABLE -->
+            <div class="bg-white border border-slate-200 p-3.5 rounded-2xl shadow-xs space-y-2.5">
+                <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                    <h3 class="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i data-lucide="database" class="w-4 h-4 text-blue-900"></i>
+                        <span>Live ISRO IRNSS Constellation Telemetry</span>
+                    </h3>
+                    <span class="text-[9px] font-mono text-slate-500 font-bold">6 SATELLITES IN VIEW</span>
+                </div>
+
+                <div class="space-y-2">
+                    ${n.satellites.map(s => `
+                        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-1.5">
+                                    <span class="px-1.5 py-0.2 bg-blue-900 text-white rounded font-mono font-bold text-[9px]">PRN ${s.prn}</span>
+                                    <span class="font-black text-slate-900 text-[11px]">${s.id}</span>
+                                    <span class="text-[9px] text-slate-500 font-mono">(${s.orbit})</span>
+                                </div>
+                                <span class="px-1.5 py-0.2 rounded font-bold text-[8px] font-mono ${s.status === 'LOCKED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                                    ● ${s.status}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between text-[10px] text-slate-600">
+                                <span>Elev: <b>${s.elevation}°</b> • Azim: <b>${s.azimuth}°</b></span>
+                                <span class="font-mono text-emerald-700 font-bold">${s.snr} dB-Hz</span>
+                            </div>
+                            <div class="flex items-center space-x-2 pt-0.5">
+                                <div class="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                    <div class="h-full bg-emerald-500 rounded-full" style="width: ${(s.snr / 50) * 100}%"></div>
+                                </div>
+                                <span class="text-[9px] text-slate-500 truncate shrink-0"><b>Role:</b> ${s.role}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- RAW HEX EWMS SATELLITE PACKET STREAM DECODER -->
+            <div class="bg-slate-950 text-cyan-300 border border-cyan-800/60 p-4 rounded-2xl shadow-md space-y-3 font-mono">
+                <div class="flex items-center justify-between pb-2 border-b border-cyan-900/60">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="binary" class="w-4 h-4 text-cyan-400"></i>
+                        <span class="text-xs font-bold text-white uppercase tracking-wider">Raw EWMS Packet Stream</span>
+                    </div>
+                    <span class="text-[9px] text-emerald-400 font-bold">CRC-16 OK</span>
+                </div>
+
+                <div class="p-2.5 bg-slate-900 rounded-xl border border-cyan-950 space-y-1.5 text-[11px]">
+                    <div class="text-[10px] text-slate-400">HEX PAYLOAD (2492 MHz S-BAND DEMODULATED):</div>
+                    <div class="text-xs font-bold text-amber-300 tracking-widest break-all bg-black/40 p-2 rounded border border-slate-800">
+                        ${n.lastPacketReceived.rawHex || "55 AA 04 1E 08 4E 1A 9B 4F 82 11 F0 38 29"}
+                    </div>
+                    <div class="pt-1.5 space-y-1 text-[10px] text-cyan-200">
+                        <p>▶ <b class="text-white">Msg Classification:</b> ${n.lastPacketReceived.msgType}</p>
+                        <p>▶ <b class="text-white">Geographic Bounds:</b> ${n.lastPacketReceived.targetGrid}</p>
+                        <p>▶ <b class="text-white">Hazard Metrics:</b> Surge ${n.lastPacketReceived.surgeFactor} • Lead Time ${n.lastPacketReceived.leadTime}</p>
+                        <p>▶ <b class="text-white">Timestamp:</b> ${n.lastPacketReceived.timestamp}</p>
+                    </div>
+                </div>
+
+                <button onclick="decodeNextNavICPacket()" class="w-full py-2 bg-cyan-950 hover:bg-cyan-900 border border-cyan-600/80 text-cyan-200 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow active:scale-95">
+                    <i data-lucide="radio" class="w-4 h-4"></i>
+                    <span>📡 Intercept & Decode Next NavIC Satellite Frame</span>
+                </button>
+            </div>
+
+            <!-- TWO-WAY SATELLITE RETURN LINK SERVICE (RLS) SOS UPLINK -->
+            <div class="bg-gradient-to-br from-red-950 via-slate-900 to-slate-900 border border-red-800/80 p-4 rounded-2xl shadow-md text-white space-y-3">
+                <div class="flex items-center justify-between pb-1.5 border-b border-red-900/60">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="shield-alert" class="w-4 h-4 text-red-400"></i>
+                        <span class="text-xs font-black text-red-300 uppercase tracking-wider">NavIC Return Link Service (RLS)</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[8px] font-black ${n.sosSentViaNavIC ? 'bg-emerald-600 text-white' : 'bg-red-900/80 text-red-200 border border-red-700'}">
+                        ${n.returnLinkStatus}
+                    </span>
+                </div>
+
+                <p class="text-[11px] text-slate-300 leading-relaxed">
+                    When terrestrial phone networks are completely washed out, NavIC's <b>Two-Way Return Link Service</b> enables you to beam an encrypted distress SOS payload straight up to ISRO's IRNSS-1I satellite, relaying GPS coordinates to the NDRF National Command Hub in Hassan.
+                </p>
+
+                ${n.sosSentViaNavIC ? `
+                    <div class="p-3 bg-emerald-950/80 border border-emerald-500/60 rounded-xl space-y-1 text-xs font-mono">
+                        <div class="flex items-center space-x-1.5 text-emerald-300 font-bold">
+                            <span>✓</span>
+                            <span>SATELLITE ACKNOWLEDGMENT RECEIVED</span>
+                        </div>
+                        <p class="text-[10px] text-emerald-200">ISRO ISTRAC ACK Token: <b>#RLS-ACK-0x8F21</b></p>
+                        <p class="text-[10px] text-slate-300">NDRF Battalion 8 notified • Rescue boat dispatched with GPS pin.</p>
+                    </div>
+                ` : ''}
+
+                <button onclick="broadcastNavICDistress()" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black shadow-lg uppercase tracking-wider flex items-center justify-center space-x-2 transition active:scale-95 ${n.sosSentViaNavIC ? 'opacity-80' : 'animate-pulse'}">
+                    <i data-lucide="satellite" class="w-4 h-4"></i>
+                    <span>${n.sosSentViaNavIC ? 'Re-Transmit Satellite SOS Beacon' : '🚨 Uplink Satellite Distress Beacon (ISRO RLS)'}</span>
+                </button>
+            </div>
+
+            <!-- BACK TO HOME BUTTON -->
+            <button onclick="navigate('home')" class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold transition text-center shadow-xs">
+                ← Back to Main Dashboard
+            </button>
+        </div>
+    `;
+}
+
+// -------------------------------------------------------------
+// NAVIC CANVAS POLAR RADAR ENGINE
+// -------------------------------------------------------------
+function initNavICCanvas() {
+    if (navicAnimationId) {
+        cancelAnimationFrame(navicAnimationId);
+        navicAnimationId = null;
+    }
+
+    const canvas = document.getElementById("navic-polar-radar");
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width;
+    const height = canvas.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const maxRadius = (width / 2) - 20;
+
+    let scanAngle = 0;
+
+    function drawRadar() {
+        if (!document.getElementById("navic-polar-radar")) {
+            if (navicAnimationId) cancelAnimationFrame(navicAnimationId);
+            return;
+        }
+
+        ctx.clearRect(0, 0, width, height);
+
+        // Background circle
+        ctx.fillStyle = "#020617";
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, maxRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Elevation Concentric Rings (0 deg Horizon, 30 deg, 60 deg, 90 deg Zenith)
+        ctx.strokeStyle = "#1e293b";
+        ctx.lineWidth = 1;
+
+        const rings = [0.33, 0.66, 1.0];
+        rings.forEach(r => {
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, maxRadius * r, 0, Math.PI * 2);
+            ctx.stroke();
+        });
+
+        // Azimuth Crosshair Axes
+        ctx.strokeStyle = "#1e293b";
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY - maxRadius);
+        ctx.lineTo(centerX, centerY + maxRadius);
+        ctx.moveTo(centerX - maxRadius, centerY);
+        ctx.lineTo(centerX + maxRadius, centerY);
+        ctx.stroke();
+
+        // Cardinal Directions
+        ctx.fillStyle = "#38bdf8";
+        ctx.font = "bold 9px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("N (0°)", centerX, centerY - maxRadius + 8);
+        ctx.fillText("S (180°)", centerX, centerY + maxRadius - 8);
+        ctx.fillText("E (90°)", centerX + maxRadius - 16, centerY);
+        ctx.fillText("W (270°)", centerX - maxRadius + 16, centerY);
+        ctx.fillStyle = "#64748b";
+        ctx.fillText("Zenith 90°", centerX, centerY + 12);
+
+        // Rotating Radar Sweep Beam
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(scanAngle);
+
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, maxRadius);
+        gradient.addColorStop(0, "rgba(6, 182, 212, 0.4)");
+        gradient.addColorStop(1, "rgba(6, 182, 212, 0.0)");
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, maxRadius, -Math.PI / 6, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.8)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(maxRadius, 0);
+        ctx.stroke();
+
+        ctx.restore();
+
+        // Satellites Plotting
+        const sats = (STATE.navic && STATE.navic.satellites) || [];
+        sats.forEach((sat, idx) => {
+            // Map elevation (0..90) to radial distance (maxRadius..0)
+            const r = maxRadius * ((90 - sat.elevation) / 90);
+            // Map azimuth (0..360) clockwise from North (angle - 90 deg in canvas radians)
+            const theta = (sat.azimuth - 90) * (Math.PI / 180);
+
+            const satX = centerX + r * Math.cos(theta);
+            const satY = centerY + r * Math.sin(theta);
+
+            // Pulsing Ring for locked satellites
+            const pulse = (Math.sin(Date.now() / 250 + idx) + 1) / 2;
+            ctx.strokeStyle = sat.status === "LOCKED" ? `rgba(16, 185, 129, ${0.4 + pulse * 0.5})` : `rgba(245, 158, 11, ${0.4 + pulse * 0.5})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(satX, satY, 6 + pulse * 4, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Satellite Dot
+            ctx.fillStyle = sat.status === "LOCKED" ? "#10b981" : "#f59e0b";
+            ctx.beginPath();
+            ctx.arc(satX, satY, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Satellite Label & PRN
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 8px monospace";
+            ctx.textAlign = "center";
+            ctx.fillText(sat.prn, satX, satY - 7);
+        });
+
+        scanAngle += 0.035;
+        navicAnimationId = requestAnimationFrame(drawRadar);
+    }
+
+    drawRadar();
+}
+
+// -------------------------------------------------------------
+// NAVIC CONTROLLER ACTIONS
+// -------------------------------------------------------------
+function toggleNavICZeroTelecomMode() {
+    if (!STATE.navic) return;
+    STATE.navic.zeroTelecomMode = !STATE.navic.zeroTelecomMode;
+
+    if (STATE.navic.zeroTelecomMode) {
+        showToast("🚨 Terrestrial 4G/5G Failure simulated! Transparently switched to ISRO NavIC Sat-Direct (2492.028 MHz).", "error");
+        playSirenPulse();
+    } else {
+        showToast("📶 Restored hybrid connection (4G/5G Cellular + ISRO NavIC S-Band Standby).", "success");
+    }
+
+    // Update status bar network chip if present
+    const chip = document.querySelector(".android-status-bar span.bg-emerald-600, .android-status-bar span.bg-indigo-600");
+    if (chip) {
+        if (STATE.navic.zeroTelecomMode) {
+            chip.className = "text-[9px] px-1.5 py-0.2 rounded bg-indigo-600 text-cyan-200 font-bold animate-pulse";
+            chip.innerText = "🛰️ NavIC SAT";
+        } else {
+            chip.className = "text-[9px] px-1.5 py-0.2 rounded bg-emerald-600 text-white font-bold";
+            chip.innerText = "5G GPS";
+        }
+    }
+
+    navigate("navic");
+}
+
+function decodeNextNavICPacket() {
+    const payloads = [
+        {
+            rawHex: "55 AA 04 1E 08 4E 1A 9B 4F 82 11 F0 38 29",
+            msgType: "EWMS-04 (Flash Flood Surge)",
+            targetGrid: "30.08°N, 78.26°E (Haridwar Basin)",
+            severity: "CRITICAL",
+            surgeFactor: "+3.45m",
+            leadTime: "1.5 hrs",
+            checksum: "0x9B4F (CRC-16 OK)"
+        },
+        {
+            rawHex: "55 AA 07 2B 12 7A 3F 88 C1 44 90 EA 12 BC",
+            msgType: "EWMS-07 (Glacial Lake Outburst / GLOF)",
+            targetGrid: "30.55°N, 79.18°E (Kedarnath Upper Range)",
+            severity: "EXTREME",
+            surgeFactor: "+5.10m",
+            leadTime: "45 mins",
+            checksum: "0x88C1 (CRC-16 OK)"
+        },
+        {
+            rawHex: "55 AA 02 0A 04 31 2C 5D E4 78 33 A1 99 10",
+            msgType: "EWMS-02 (Severe Cloudburst Core)",
+            targetGrid: "30.10°N, 78.30°E (Rishikesh Ghats)",
+            severity: "CRITICAL",
+            surgeFactor: "+2.80m",
+            leadTime: "2.0 hrs",
+            checksum: "0x5DE4 (CRC-16 OK)"
+        }
+    ];
+
+    const randomPayload = payloads[Math.floor(Math.random() * payloads.length)];
+    randomPayload.timestamp = new Date().toLocaleTimeString("en-IN") + " IST";
+
+    STATE.navic.lastPacketReceived = randomPayload;
+    showToast(`🛰️ S-Band Frame Received via IRNSS-1C: ${randomPayload.msgType}`, "success");
+    navigate("navic");
+}
+
+function broadcastNavICDistress() {
+    showToast("🛰️ Uplinking Distress Packet to IRNSS-1I Satellite (2492.028 MHz)...", "info");
+    STATE.navic.returnLinkStatus = "UPLINKING TO ORBIT...";
+    navigate("navic");
+
+    setTimeout(() => {
+        showToast("📡 NavIC Space Segment relaying to ISRO ISTRAC Master Station (Hassan)...", "info");
+        STATE.navic.returnLinkStatus = "RELAYING VIA ISTRAC...";
+        navigate("navic");
+
+        setTimeout(() => {
+            STATE.navic.sosSentViaNavIC = true;
+            STATE.navic.returnLinkStatus = "ACK CONFIRMED (0x8F21)";
+            showToast("✅ Return Link Service Acknowledgment (RLS-ACK-0x8F21) received! NDRF Team Notified.", "success");
+            playSirenPulse();
+            navigate("navic");
+
+            // Also sync via live bus if active
+            if (STATE.liveSync && STATE.liveSync.broadcastChannel) {
+                try {
+                    STATE.liveSync.broadcastChannel.postMessage({
+                        type: "NAVIC_RLS_SOS",
+                        user: STATE.citizenProfile.name,
+                        coords: STATE.userCoords,
+                        ack: "RLS-ACK-0x8F21"
+                    });
+                } catch(e) {}
+            }
+        }, 1200);
+    }, 1000);
+}
+
+// -------------------------------------------------------------
+// 8. OTHER SCREENS (MESH, CWC, BROADCAST, RECOVERY, SHELTERS, ALERTS)
 // -------------------------------------------------------------
 function renderMeshSimulatorScreen() {
     return `
