@@ -380,6 +380,9 @@ function playSirenPulse() {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
         if (!audioCtx) audioCtx = new AudioContext();
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
         
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
