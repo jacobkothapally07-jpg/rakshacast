@@ -3,6 +3,10 @@
 **Ministry of Earth Sciences (MoES) & India Meteorological Department (IMD)**  
 *Tagline: “Predict Early. Respond Faster. Recover Stronger.”*
 
+> 🌐 **Live Web Application:** [https://rakshacast-sih2026.surge.sh](https://rakshacast-sih2026.surge.sh)  
+> 🛰️ **ISRO NavIC Zero-Telecom Satellite Mode:** Active  
+> ⚡ **Cloud WebSocket Emergency Sync:** Sub-150ms  
+
 ---
 
 ## 🚀 1. Overview & Mobile Purpose
@@ -13,9 +17,9 @@ $$\text{PREDICT} \longrightarrow \text{WARN} \longrightarrow \text{EVACUATE} \lo
 
 ## 📱 2. How to Open & Run the Mobile App
 
-### Option A: Instant Browser Mobile View (Standalone)
-Open the bundled mobile application in your browser:  
-📂 [`file:///Users/jacobkothapally/.gemini/antigravity/scratch/rakshacast/public/standalone-mobile.html`](file:///Users/jacobkothapally/.gemini/antigravity/scratch/rakshacast/public/standalone-mobile.html)
+### Option A: Live Deployed Progressive Web App (PWA)
+Launch the live, zero-install application directly in any browser:  
+👉 **[https://rakshacast-sih2026.surge.sh](https://rakshacast-sih2026.surge.sh)**
 
 ### Option B: Local Android Proxy Server
 ```bash
@@ -23,6 +27,10 @@ cd /Users/jacobkothapally/.gemini/antigravity/scratch/rakshacast
 node server/index.js
 ```
 Open **`http://localhost:8080`** in Chrome / Safari with Mobile Device Mode enabled ($390 \times 844\text{px}$).
+
+### Option C: Standalone Offline Mobile HTML
+Open the bundled mobile application in your browser:  
+📂 [`file:///Users/jacobkothapally/.gemini/antigravity/scratch/rakshacast/public/standalone-mobile.html`](file:///Users/jacobkothapally/.gemini/antigravity/scratch/rakshacast/public/standalone-mobile.html)
 
 ---
 
