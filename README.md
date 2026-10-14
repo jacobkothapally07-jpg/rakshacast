@@ -1,4 +1,5 @@
 # 📱 RakshaCast — AI-Powered Hyper-Local Disaster Early-Warning Android App 
+*Smart India Hackathon 2026 | Problem Statement: SIH26077*
 **Ministry of Earth Sciences (MoES) & India Meteorological Department (IMD)**  
 *Tagline: “Predict Early. Respond Faster. Recover Stronger.”*
 
